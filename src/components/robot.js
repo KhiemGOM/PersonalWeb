@@ -99,18 +99,28 @@ const DEADZONE_VIEWPORTS = 0.15;
  */
 const ARRIVED_PX = 2;
 
-/*
- * NO SPEED LIMIT, deliberately.
+/**
+ * Top speed, in world pixels per second.
  *
- * There was one, and it fought the spring for exactly the reason a spring is worth
- * having. Constant period is an amplitude-independent property: a long move is quick
- * because the pull is proportionally larger. Cap the speed and long moves stop obeying
- * it — past roughly 0.37 * omega * distance the cap governs instead, so the period grows
- * with distance again and the spring only shapes the first fifth of the journey.
+ * A spring's peak speed is about 0.37 * omega * distance, so uncapped it scales without
+ * limit: a page-length jump peaked near 15000px/s and crossed the viewport as a blur.
  *
- * Without it, peak speed scales with distance and a page-length jump is genuinely fast.
- * That is the bargain: constant period costs unbounded peak speed.
+ * The cap and the spring genuinely conflict, and the conflict cannot be designed away —
+ * constant period IS amplitude independence, and bounding speed bounds how fast a long
+ * move can be. What a cap buys is a choice of where to stop honouring it. Above
+ * MAX_SPEED / (0.37 * omega) — about 990px here, comfortably more than a section — the
+ * cap governs and longer moves do take longer. Below it the spring is untouched and the
+ * period holds.
+ *
+ * So: section-scale movement keeps its constant period, and page-length jumps are
+ * deliberate rather than instant.
+ *
+ * Measured in PIXELS, not progress. Progress is only a parameter along the curve — on a
+ * stretch that also swings sideways the robot covers far more ground per unit progress
+ * (measured: 166% more through a crossing), so capping progress would make the apparent
+ * top speed a function of the slope of the line it happens to be on.
  */
+const MAX_SPEED_PX_PER_SECOND = 2200;
 
 /*
  * NO DRIFT LIMIT either.
@@ -366,7 +376,14 @@ export function createRobot(config) {
       acceleration = MIN_ACCELERATION * Math.sign(displacement) - DAMPING * velocity;
     }
 
-    velocity += acceleration * seconds;
+    // Clamped on velocity rather than on the resulting step: velocity is already in
+    // px/s, so this is the speed limit stated directly, with no conversion to get wrong.
+    velocity = clamp(
+      velocity + acceleration * seconds,
+      -MAX_SPEED_PX_PER_SECOND,
+      MAX_SPEED_PX_PER_SECOND
+    );
+
     pathProgress = start + (velocity * seconds) / perProgress;
 
     // The ends of the route are walls. Without this the spring keeps integrating past
