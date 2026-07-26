@@ -172,12 +172,17 @@ function withCone(ctx, beam, draw) {
  * @param {number} tint.x @param {number} tint.y @param {number} tint.radius
  * @param {string} tint.color      Any CSS color the canvas can parse
  * @param {number} [tint.alpha=0.08]
+ * @param {boolean} [tint.additive]
+ *   Adds light rather than laying colour over what is there. Without it a pool can only
+ *   ever subtract darkness, so it tops out at however bright the page beneath it happens
+ *   to be — while anything that does add light will always look stronger, no matter how
+ *   hard the pool is punched.
  */
 export function applyTint(ctx, w, h, tint) {
-  const { x, y, radius, color, alpha = 0.08 } = tint;
+  const { x, y, radius, color, alpha = 0.08, additive = false } = tint;
 
   ctx.save();
-  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalCompositeOperation = additive ? 'lighter' : 'source-over';
   ctx.globalAlpha = alpha;
 
   const g = ctx.createRadialGradient(x, y, 0, x, y, radius);

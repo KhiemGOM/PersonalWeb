@@ -118,7 +118,17 @@ const BEAM_COLOR = '#a6f4e4';
  * glare rather than illumination. A torch bright enough to blow out what it is pointed at
  * defeats itself — the whole job is revealing the texture underneath, not replacing it.
  */
-const BEAM_GLOW = 0.26;
+const BEAM_GLOW = 0.18;
+
+/**
+ * How hard the room's spotlight adds light, matching the torch's treatment.
+ *
+ * It used only to wash colour over what it had uncovered, which caps it at however bright
+ * the page beneath happens to be. The torch adds light on top, so it won every time
+ * regardless of how hard the pool was punched — the imbalance was structural, not a
+ * matter of turning one down far enough.
+ */
+const SPOT_GLOW = 0.13;
 
 /**
  * Blur on the beam, as a fraction of its length — what keeps the wedge from reading as a
@@ -447,7 +457,8 @@ export function createLighting(config) {
         y: focusY,
         radius: focusRadius * 0.9,
         color: tint,
-        alpha: 0.1 * ambient,
+        alpha: SPOT_GLOW * ambient,
+        additive: true,
       });
     }
   }
