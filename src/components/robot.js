@@ -99,46 +99,29 @@ const DEADZONE_VIEWPORTS = 0.15;
  */
 const ARRIVED_PX = 2;
 
-/**
- * Top speed, in world pixels per second.
+/*
+ * NO SPEED LIMIT, deliberately.
  *
- * Damping alone can never be outrun: it always closes the same FRACTION of the remaining
- * gap per frame, so a huge scroll jump just produces a huge initial velocity and the
- * robot keeps pace with anything. A real vehicle has a maximum speed instead.
+ * There was one, and it fought the spring for exactly the reason a spring is worth
+ * having. Constant period is an amplitude-independent property: a long move is quick
+ * because the pull is proportionally larger. Cap the speed and long moves stop obeying
+ * it — past roughly 0.37 * omega * distance the cap governs instead, so the period grows
+ * with distance again and the spring only shapes the first fifth of the journey.
  *
- * Measured in PIXELS, not progress. Progress is only a parameter along the curve, so
- * capping it caps the wrong thing — on a stretch where the path also swings sideways the
- * robot covers more ground per unit progress than on a straight vertical run, and its
- * apparent top speed ends up a function of the slope of the line it is on. Converting
- * through the local derivative gives one speed limit that holds everywhere.
- *
- * Raised alongside STIFFNESS. A spring's peak speed is about 0.37 * omega * distance, so
- * at the old 780 limit anything past ~350px hit the cap and stopped getting any faster —
- * which is most real moves, a section being 765px. Stiffening the spring without lifting
- * this would have changed almost nothing except the first fifth of each journey.
+ * Without it, peak speed scales with distance and a page-length jump is genuinely fast.
+ * That is the bargain: constant period costs unbounded peak speed.
  */
-const MAX_SPEED_PX_PER_SECOND = 1250;
 
-/**
- * Furthest the robot may drift from the view, in viewport heights.
+/*
+ * NO DRIFT LIMIT either.
  *
- * Flat out, a slam to the far end of the page would otherwise leave it several viewports
- * adrift and off-screen for seconds, which stops reading as "left behind" and starts
- * reading as "gone".
- *
- * Symmetric, now that the robot rides at mid-height and has equal room either side. The
- * lopsided version this replaced existed only to compensate for it sitting low.
+ * It existed to stop the robot being stranded off-screen for seconds at a time, which was
+ * only possible because the speed cap prevented it catching up. An uncapped spring closes
+ * any gap in about the same time, so there is nothing left to strand it — and keeping the
+ * limit would have been worse than useless: a page-length jump starts several viewports
+ * adrift, so the clamp would fire immediately and drag the robot at its own fixed rate,
+ * overriding the spring on exactly the moves the spring exists to shape.
  */
-const MAX_DRIFT_VIEWPORTS = 1.2;
-
-/**
- * Ceiling on how far the drift limit may exceed the speed limit, as a multiple of it.
- *
- * The limit can engage while the robot is still on screen, and an unbounded clamp yanks
- * it along at several times its top speed — measured once at 4198px/s against a 780
- * limit, which looks like a glitch rather than a machine hurrying.
- */
-const DRIFT_MAX_BOOST = 2;
 
 /** How quickly the robot leaves the path to take up its pinned post, and returns. */
 const PIN_SMOOTHING = 0.05;
@@ -338,22 +321,14 @@ export function createRobot(config) {
     const scrolled = scrollProgress();
     const scrollableHeight = Math.max(1, document.documentElement.scrollHeight - height);
 
-    // World px covered per unit of progress, at this point on the curve. Everything below
-    // is computed in pixels — real distances, so the spring and the speed limit are in
-    // units that mean something — and converted back to progress at the end.
-    //
-    // Sampled at both ends of the step, not just the start: through a sideways crossing
-    // the figure climbs steeply within a single frame, and a start-of-step reading
-    // understates it by ~17%. Taking the larger keeps things conservative — slightly slow
-    // through a bend, never fast.
+    // World px covered per unit of progress, at this point on the curve. The spring works
+    // in pixels — real distances, so stiffness and the acceleration floor are in units
+    // that mean something — and converts back to progress at the end.
     const scale = { x: width, y: height };
-    const budget = (MAX_SPEED_PX_PER_SECOND * dt) / 1000;
-    const direction = Math.sign(scrolled - pathProgress) || 1;
-    const perStart = speedPerProgress(pathProgress, JOURNEY, scale, scrollableHeight);
-    const tentative = pathProgress + (direction * budget) / Math.max(1, perStart);
-    const perEnd = speedPerProgress(clamp(tentative), JOURNEY, scale, scrollableHeight);
-    const perProgress = Math.max(1, perStart, perEnd);
-    const maxStep = budget / perProgress;
+    const perProgress = Math.max(
+      1,
+      speedPerProgress(pathProgress, JOURNEY, scale, scrollableHeight)
+    );
 
     const start = pathProgress;
 
@@ -391,29 +366,16 @@ export function createRobot(config) {
       acceleration = MIN_ACCELERATION * Math.sign(displacement) - DAMPING * velocity;
     }
 
-    velocity = clamp(
-      velocity + acceleration * seconds,
-      -MAX_SPEED_PX_PER_SECOND,
-      MAX_SPEED_PX_PER_SECOND
-    );
+    velocity += acceleration * seconds;
+    pathProgress = start + (velocity * seconds) / perProgress;
 
-    const capped = start + clamp((velocity * seconds) / perProgress, -maxStep, maxStep);
-
-    // Never let it get so far from the view that it is gone for seconds at a time.
-    const maxDrift = (MAX_DRIFT_VIEWPORTS * height) / scrollableHeight;
-    const bounded = clamp(capped, scrolled - maxDrift, scrolled + maxDrift);
-
-    // Bound the frame's TOTAL displacement, measured from where it started. Applying the
-    // drift correction as a further increment on top of an already-capped step lets the
-    // two stack, which produced 3x the speed limit rather than the intended 2x.
-    const driftStep = maxStep * DRIFT_MAX_BOOST;
-    pathProgress = start + clamp(bounded - start, -driftStep, driftStep);
-
-    // Reconcile momentum with what actually happened. The speed cap and the drift bound
-    // both override the spring, and leaving `velocity` as the spring's wish means it
-    // carries a speed the robot never reached — which then discharges the moment the
-    // limit lifts, as a lurch.
-    if (seconds > 0) velocity = ((pathProgress - start) * perProgress) / seconds;
+    // The ends of the route are walls. Without this the spring keeps integrating past
+    // them, banking velocity that discharges as a lurch the moment the visitor scrolls
+    // back off the boundary.
+    if (pathProgress < 0 || pathProgress > 1) {
+      pathProgress = clamp(pathProgress);
+      velocity = 0;
+    }
 
     const point = getPositionAtProgress(pathProgress, JOURNEY);
     if (point.stop !== currentStop) {
