@@ -47,24 +47,25 @@ const PATH_SMOOTHING = 0.035;
 const HEAD_SMOOTHING = 0.07;
 
 /**
- * Stops the robot parks beside, in progress order — one per landing section.
+ * Slack before the robot reacts to scrolling, in viewport heights.
+ *
+ * Small scrolls leave it alone, so it is not permanently twitching. Once the view has
+ * moved further than this it follows continuously, all the way back to where you are —
+ * it does not hop between fixed posts. An earlier version targeted the section stops
+ * discretely, which made movement binary: parked or driving, never travelling with you.
+ *
+ * Kept small. This is slack, not a parking brake.
  */
-const STOPS = JOURNEY.filter((w) => w.stop);
+const DEADZONE_VIEWPORTS = 0.15;
 
 /**
- * How far past its parking spot the view must travel before the robot commits to moving,
- * measured in sections.
+ * Gap, in world pixels, at which the robot considers itself arrived and settles again.
  *
- * Without this the robot chases the scroll position continuously and is always drifting
- * a little, which reads as restless. With it, the robot settles beside a section and
- * stays there through small scrolls, then drives deliberately to the next one — the
- * movement means something, because it only happens when you have actually gone
- * somewhere.
- *
- * 0.5 is the largest value that still keeps it on screen: parked at one stop while the
- * view sits half a section away puts it half a viewport from centre, right at the edge.
+ * Paired with DEADZONE_VIEWPORTS this forms a hysteresis: a larger gap starts it moving,
+ * a much smaller one lets it stop. A single threshold for both would leave it stuttering
+ * on and off right at the boundary.
  */
-const MOVE_THRESHOLD_SECTIONS = 0.5;
+const ARRIVED_PX = 2;
 
 /**
  * Top speed, in world pixels per second.
@@ -224,8 +225,8 @@ export function createRobot(config) {
   /** 0 = following the path, 1 = parked at the pinned post. */
   let pinBlend = 0;
 
-  /** Index into STOPS the robot is currently heading for, or parked at. */
-  let targetStop = 0;
+  /** True while the robot is actively tracking the scroll position — see DEADZONE_VIEWPORTS. */
+  let following = false;
 
   /** @type {string | undefined} */
   let currentStop = JOURNEY[0]?.stop;
@@ -306,16 +307,17 @@ export function createRobot(config) {
 
     const start = pathProgress;
 
-    // The robot heads for a section's parking spot, not for the live scroll position.
-    // It re-commits only once the view has moved MOVE_THRESHOLD_SECTIONS past where it
-    // is parked, so small scrolls leave it alone and each move means the visitor has
-    // actually arrived somewhere.
-    const lastStop = STOPS.length - 1;
-    const viewerInSections = scrolled * lastStop;
-    if (Math.abs(viewerInSections - targetStop) > MOVE_THRESHOLD_SECTIONS) {
-      targetStop = clamp(Math.round(viewerInSections), 0, lastStop);
-    }
-    const goal = STOPS[targetStop].progress;
+    // Deadzone with hysteresis. A gap wider than the deadzone starts it following; once
+    // following it tracks the scroll position continuously until it has caught up, then
+    // settles. So small scrolls leave it be, but a real one has it travelling with you
+    // rather than hopping to the next fixed post.
+    const gap = Math.abs(scrolled - start);
+    const deadzone = (DEADZONE_VIEWPORTS * height) / scrollableHeight;
+
+    if (!following && gap > deadzone) following = true;
+    else if (following && gap * scrollableHeight < ARRIVED_PX) following = false;
+
+    const goal = following ? scrolled : start;
 
     const eased = damp(start, goal, PATH_SMOOTHING, dt);
     const capped = start + clamp(eased - start, -maxStep, maxStep);
@@ -442,8 +444,7 @@ export function createRobot(config) {
       // exact ones: rounding pathProgress to 3dp quantizes world position to several
       // pixels, which at 60fps reads as hundreds of px/s of speed that is not there.
       exact: { pathProgress, x, y, pinBlend },
-      targetStop,
-      targetStopName: STOPS[targetStop]?.stop,
+      following,
       position: { x: Math.round(x), y: Math.round(y) },
       look: { x: +lookX.toFixed(3), y: +lookY.toFixed(3) },
       tilt: +(lookX * MAX_TILT).toFixed(2),
