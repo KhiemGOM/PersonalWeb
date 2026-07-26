@@ -1,8 +1,9 @@
 /**
- * Robot rig.
+ * Robot rig — rover chassis, four-wheel drivetrain, camera head on a mast.
  *
  * DEBUG STYLING: dashed strokes and flat accent fills mark this as placeholder art. When
- * hand-drawn assets land the shapes get swapped; the transform structure below stays.
+ * hand-drawn assets land, only the SVG shapes get swapped; the transform structure here
+ * is what the motion depends on and stays.
  */
 
 .robot {
@@ -19,35 +20,86 @@
   translate: -50% -50%;
 }
 
-/* ---- Body ---- */
+/* ---- Body ----
+   Flips to face direction of travel. The flip is deliberately confined to the body: the
+   head must keep tracking the cursor in screen space, and mirroring it too would invert
+   its gaze every time the rover turned around. */
 
 .robot__body {
-  width: 120px;
-  transition: opacity var(--tempo-flicker) var(--ease-out);
+  width: 150px;
+  scale: var(--facing, 1) 1;
+  transition:
+    scale var(--tempo-flicker) var(--ease-out),
+    opacity var(--tempo-flicker) var(--ease-out);
+}
+
+.robot__wheel {
+  transform-box: fill-box;
+  transform-origin: center;
+  rotate: var(--wheel-angle, 0deg);
+}
+
+.robot__tyre {
+  fill: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+
+.robot__spoke {
+  stroke: color-mix(in srgb, var(--accent) 60%, transparent);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.robot__axle,
+.robot__mast {
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.robot__panel {
+  fill: color-mix(in srgb, var(--accent) 45%, var(--surface));
 }
 
 /* ---- Head ----
-   Sits above the body in 'full' mode. Its own transform layers the look-at offset and
-   tilt on top of that placement, so the head moves independently of the body. */
+   Sits atop the mast in 'full' mode. Its own transform layers the look-at offset and
+   tilt over that placement, so the camera moves independently of the chassis. */
 
 .robot__head {
   position: absolute;
   left: 50%;
   bottom: 100%;
-  width: 100px;
-  margin-left: -50px;
-  margin-bottom: -18px;
+  width: 104px;
+  margin-left: -52px;
+  margin-bottom: -14px;
   translate: var(--look-x, 0) var(--look-y, 0);
   rotate: var(--tilt, 0deg);
-  transform-origin: 50% 85%;
+  transform-origin: 50% 78%;
   transition:
     translate var(--tempo-pop) linear,
-    rotate var(--tempo-pop) linear;
+    rotate var(--tempo-pop) linear,
+    width var(--tempo-flicker) var(--ease-out);
+}
+
+.robot__lens {
+  fill: color-mix(in srgb, var(--accent) 70%, var(--bg));
+}
+
+.robot__glint {
+  fill: var(--text);
+  opacity: 0.85;
+}
+
+.robot__yoke {
+  stroke: var(--accent);
+  stroke-width: 4;
+  stroke-linecap: round;
 }
 
 /* ---- Head-only mode ----
-   Hub and detail pages show the head alone, pinned left. The body is removed from layout
-   rather than hidden, so the head can centre on the rig origin. */
+   Hub and detail pages show the camera alone, pinned left. The body is faded and taken
+   out of layout so the head can centre on the rig origin. */
 
 .robot[data-mode='head'] .robot__body {
   opacity: 0;
@@ -57,10 +109,10 @@
 .robot[data-mode='head'] .robot__head {
   position: static;
   margin: 0;
-  width: 84px;
+  width: 92px;
 }
 
-/* ---- Placeholder shapes ---- */
+/* ---- Shared placeholder shapes ---- */
 
 .robot__shape {
   fill: color-mix(in srgb, var(--accent) 14%, var(--surface));
@@ -71,17 +123,6 @@
 
 .robot__detail {
   fill: var(--accent);
-}
-
-.robot__eye {
-  fill: var(--text);
-}
-
-.robot__limb {
-  stroke: var(--accent);
-  stroke-width: 3;
-  stroke-linecap: round;
-  stroke-dasharray: 7 5;
 }
 
 .robot svg {
@@ -95,7 +136,8 @@
     will-change: auto;
   }
 
-  .robot__head {
+  .robot__head,
+  .robot__body {
     transition: none;
   }
 }

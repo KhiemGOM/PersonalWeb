@@ -1,0 +1,135 @@
+/**
+ * Landing page — one full-viewport section per journey stop.
+ *
+ * Sections are transparent: the robot lives in a fixed layer and the content scrolls past
+ * it. Never give a section a background, or the robot disappears behind it.
+ *
+ * `data-align` puts text opposite the robot's waypoint for that section. The pairing is
+ * authored in content/journey.js; changing one without the other puts the robot on top of
+ * what you are reading.
+ */
+
+.landing__section {
+  min-height: 100dvh;
+  display: grid;
+  align-items: center;
+  padding: var(--space-xl) clamp(var(--space-m), 7vw, var(--space-2xl));
+}
+
+.landing__section[data-align='left'] {
+  justify-items: start;
+}
+
+.landing__section[data-align='right'] {
+  justify-items: end;
+}
+
+.landing__section[data-align='center'] {
+  justify-items: center;
+  text-align: center;
+}
+
+.landing__text {
+  max-width: 34ch;
+  display: grid;
+  gap: var(--space-s);
+  /* The robot passes behind the text; keep the copy legible over it. */
+  position: relative;
+  z-index: 1;
+}
+
+.landing__section[data-align='right'] .landing__text {
+  text-align: right;
+  justify-items: end;
+}
+
+.landing__heading {
+  font-size: var(--step-2);
+  text-wrap: balance;
+}
+
+.landing__section[data-kind='intro'] .landing__heading {
+  font-size: var(--step-3);
+}
+
+.landing__blurb {
+  color: var(--text-muted);
+}
+
+/* A taste of what is inside the hub, not the full list. */
+.landing__names {
+  list-style: none;
+  display: grid;
+  gap: var(--space-2xs);
+  color: var(--text-faint);
+  font-family: var(--font-display);
+  font-size: var(--step--1);
+  letter-spacing: 0.03em;
+}
+
+.landing__enter {
+  justify-self: inherit;
+  margin-top: var(--space-xs);
+  color: var(--accent);
+  font-family: var(--font-display);
+  font-size: var(--step--1);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  padding-block: var(--space-2xs);
+  border-bottom: 1px solid transparent;
+  transition: border-color var(--tempo-hover) var(--ease-out);
+}
+
+.landing__enter:hover {
+  border-bottom-color: var(--accent);
+}
+
+/* ---- Scroll hint ---- */
+
+.landing__hint {
+  position: fixed;
+  bottom: var(--space-m);
+  left: 50%;
+  translate: -50% 0;
+  z-index: 1;
+  font-family: var(--font-display);
+  font-size: var(--step--1);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-faint);
+  pointer-events: none;
+  animation: hint-fade 2.4s ease-in-out infinite;
+  transition: opacity var(--tempo-flicker) var(--ease-out);
+}
+
+@keyframes hint-fade {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+/* ---- Narrow viewports ----
+   The robot's path sweeps across the full width, which on a phone means it crosses
+   directly over the text. Centre everything and let the robot pass behind. */
+
+@media (max-width: 44rem) {
+  .landing__section,
+  .landing__section[data-align='left'],
+  .landing__section[data-align='right'] {
+    justify-items: center;
+    text-align: center;
+  }
+
+  .landing__section[data-align='right'] .landing__text {
+    text-align: center;
+    justify-items: center;
+  }
+
+  .landing__text {
+    max-width: 30ch;
+  }
+}

@@ -55,6 +55,55 @@ function compile(pattern) {
 }
 
 /**
+ * Records that a reload has already been attempted for a path, so a permanently broken
+ * chunk surfaces an error instead of looping. Session-scoped: a later visit gets to try
+ * the reload again, since by then the deploy may well be fixed.
+ */
+const GUARD_KEY = 'router.reloadAttempt';
+
+function readGuard() {
+  try {
+    return sessionStorage.getItem(GUARD_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/** @param {string} path */
+function writeGuard(path) {
+  try {
+    sessionStorage.setItem(GUARD_KEY, path);
+  } catch {
+    /* Without storage we cannot detect the loop, but one reload is still the right try. */
+  }
+}
+
+function clearGuard() {
+  try {
+    sessionStorage.removeItem(GUARD_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Last-resort UI when a view cannot be loaded even after a reload.
+ * Deliberately plain: whatever is broken, this must not depend on it.
+ * @param {URL} url
+ */
+function loadFailure(url) {
+  const node = document.createElement('section');
+  node.style.cssText = 'min-height:100dvh;display:grid;place-content:center;gap:1rem;text-align:center;padding:2rem';
+  node.innerHTML =
+    '<p style="letter-spacing:.2em;text-transform:uppercase;font-size:.85rem;opacity:.6">Something broke</p>' +
+    '<h1>This page would not load.</h1>' +
+    `<p style="opacity:.7;max-width:44ch;margin-inline:auto">Reloading did not help, so it is on my end, not yours. ` +
+    `<a href="/" style="color:var(--accent, #00c4a0)" data-native>Go back home</a>.</p>`;
+  console.error(`[router] giving up on ${url.pathname} after a reload attempt`);
+  return node;
+}
+
+/**
  * @param {Object} config
  * @param {Route[]} config.routes
  * @param {Route} config.notFound        Rendered when nothing matches
@@ -128,12 +177,25 @@ export function createRouter(config) {
     try {
       view = await route.load();
     } catch (error) {
-      // A failed chunk load is a broken deploy or a dead connection, not a 404 — a full
-      // reload is the honest recovery, since the app's JS is what failed.
+      // A failed chunk load usually means a stale deploy: the HTML references hashed
+      // filenames that no longer exist. One reload fixes that by fetching fresh HTML.
+      //
+      // But reloading unconditionally is a trap — if the chunk is genuinely gone, the
+      // reload fails identically and the browser loops forever. So the attempt is
+      // recorded, and a second failure on the same path surfaces the error instead.
       console.error(`[router] failed to load view for ${url.pathname}`, error);
+
+      if (readGuard() === url.pathname) {
+        clearGuard();
+        outlet.replaceChildren(loadFailure(url));
+        return;
+      }
+
+      writeGuard(url.pathname);
       window.location.assign(url.href);
       return;
     }
+    clearGuard();
     if (token !== navToken) return;
 
     await beforeSwap?.({ from: activePath, to: url.pathname, route });

@@ -41,33 +41,70 @@ const PINNED_X = 78;
 /** Below this delta, skip the DOM write — avoids thrashing style on sub-pixel jitter. */
 const EPSILON = 0.01;
 
+/** Rolling circumference in CSS px (r=15 in a 150-unit viewBox rendered at 150px). */
+const WHEEL_CIRCUMFERENCE = 2 * Math.PI * 15;
+
+/**
+ * Horizontal speed (px/frame) required to commit to a direction change. Without this the
+ * chassis flips back and forth while the robot is essentially parked, since damping
+ * leaves a tiny residual drift that keeps crossing zero.
+ */
+const FACING_THRESHOLD = 0.35;
+
+/** One wheel: tyre, hub, and spokes. Spokes are what make rotation legible. */
+function wheel(cx) {
+  return `
+    <g class="robot__wheel" style="--wheel-cx: ${cx}px">
+      <circle cx="${cx}" cy="72" r="15" class="robot__tyre" />
+      <circle cx="${cx}" cy="72" r="5" class="robot__detail" />
+      <path d="M${cx} 59 V85 M${cx - 13} 72 H${cx + 13}" class="robot__spoke" />
+    </g>`;
+}
+
+/**
+ * Rover chassis on a four-wheel drivetrain, side view.
+ * Wheels rotate with distance travelled; the whole body flips to face direction of travel.
+ */
 function bodyArt() {
   return el('div', {
     className: 'robot__body',
     'aria-hidden': 'true',
     innerHTML: `
-      <svg viewBox="0 0 120 150" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M32 34 H88 L94 104 H26 Z" class="robot__shape" />
-        <rect x="48" y="56" width="24" height="16" rx="4" class="robot__detail" />
-        <path d="M26 104 L30 142" class="robot__limb" />
-        <path d="M94 104 L90 142" class="robot__limb" />
-        <path d="M32 46 L10 88" class="robot__limb" />
-        <path d="M88 46 L110 88" class="robot__limb" />
+      <svg viewBox="0 0 150 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M22 68 H128" class="robot__axle" />
+        ${[30, 62, 94, 122].map(wheel).join('')}
+
+        <rect x="20" y="24" width="112" height="38" rx="7" class="robot__shape" />
+        <rect x="34" y="34" width="52" height="16" rx="3" class="robot__detail" />
+        <rect x="96" y="34" width="22" height="16" rx="3" class="robot__panel" />
+
+        <path d="M76 24 V6" class="robot__mast" />
       </svg>`,
   });
 }
 
+/**
+ * Perception camera — twin lens housings on a yoke. This is the part that tracks the
+ * cursor, so the lenses carry a highlight that reads as a direction of gaze.
+ */
 function headArt() {
   return el('div', {
     className: 'robot__head',
     'aria-hidden': 'true',
     innerHTML: `
-      <svg viewBox="0 0 100 92" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="12" y="16" width="76" height="64" rx="20" class="robot__shape" />
-        <circle cx="38" cy="48" r="6" class="robot__eye" />
-        <circle cx="64" cy="48" r="6" class="robot__eye" />
-        <path d="M50 16 V4" class="robot__limb" />
-        <circle cx="50" cy="4" r="4" class="robot__detail" />
+      <svg viewBox="0 0 130 76" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M40 52 H90" class="robot__yoke" />
+
+        <g class="robot__lens-unit">
+          <circle cx="42" cy="36" r="22" class="robot__shape" />
+          <circle cx="42" cy="36" r="12" class="robot__lens" />
+          <circle cx="47" cy="31" r="4" class="robot__glint" />
+        </g>
+        <g class="robot__lens-unit">
+          <circle cx="88" cy="36" r="22" class="robot__shape" />
+          <circle cx="88" cy="36" r="12" class="robot__lens" />
+          <circle cx="93" cy="31" r="4" class="robot__glint" />
+        </g>
       </svg>`,
   });
 }
@@ -93,6 +130,11 @@ export function createRobot(config) {
 
   layer.appendChild(element);
 
+  // Mirrored onto the layer so stacking can follow mode. #robot-layer is a positioned
+  // ancestor with its own z-index, so a z-index on .robot itself could never lift it
+  // above #scene-root — the decision has to be made on the layer.
+  layer.dataset.mode = 'full';
+
   /** @type {RobotMode} */
   let mode = 'full';
 
@@ -117,6 +159,12 @@ export function createRobot(config) {
   let lastY = Infinity;
   let lastLookX = Infinity;
   let lastLookY = Infinity;
+
+  // Drivetrain state. Wheels turn with distance actually travelled, so the robot never
+  // looks like it is skating — and the chassis faces the way it is going.
+  let wheelAngle = 0;
+  let facing = 1;
+  let lastWheelAngle = Infinity;
 
   let frame = 0;
   let lastTime = performance.now();
@@ -152,8 +200,17 @@ export function createRobot(config) {
    */
   function step(dt) {
     const goal = target();
+
+    const previousX = x;
     x = damp(x, goal.x, BODY_SMOOTHING, dt);
     y = damp(y, goal.y, BODY_SMOOTHING, dt);
+
+    // Drivetrain: wheels roll the distance actually covered, chassis turns to face it.
+    const travelled = x - previousX;
+    wheelAngle = (wheelAngle + (travelled / WHEEL_CIRCUMFERENCE) * 360) % 360;
+
+    const speed = Math.abs(travelled) / (dt / 16.67);
+    if (speed > FACING_THRESHOLD) facing = Math.sign(travelled);
 
     // The head looks from where the head actually is, not from the rig origin.
     const headX = x;
@@ -168,8 +225,14 @@ export function createRobot(config) {
     if (Math.abs(x - lastX) > EPSILON || Math.abs(y - lastY) > EPSILON) {
       element.style.setProperty('--robot-x', `${x.toFixed(2)}px`);
       element.style.setProperty('--robot-y', `${y.toFixed(2)}px`);
+      element.style.setProperty('--facing', String(facing));
       lastX = x;
       lastY = y;
+    }
+
+    if (Math.abs(wheelAngle - lastWheelAngle) > EPSILON) {
+      element.style.setProperty('--wheel-angle', `${wheelAngle.toFixed(1)}deg`);
+      lastWheelAngle = wheelAngle;
     }
 
     if (Math.abs(lookX - lastLookX) > EPSILON || Math.abs(lookY - lastLookY) > EPSILON) {
@@ -202,6 +265,7 @@ export function createRobot(config) {
       if (next === mode) return;
       mode = next;
       element.dataset.mode = next;
+      layer.dataset.mode = next;
       // Position is not snapped: the damping carries the robot across to its new spot,
       // so switching modes reads as the robot walking off rather than teleporting.
     },
@@ -223,6 +287,8 @@ export function createRobot(config) {
       position: { x: Math.round(x), y: Math.round(y) },
       look: { x: +lookX.toFixed(3), y: +lookY.toFixed(3) },
       tilt: +(lookX * MAX_TILT).toFixed(2),
+      wheelAngle: +wheelAngle.toFixed(1),
+      facing,
       scrollProgress: +scrollProgress().toFixed(3),
       stop: getPositionAtProgress(scrollProgress(), JOURNEY).stop,
     }),

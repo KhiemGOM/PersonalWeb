@@ -75,6 +75,19 @@ a {
   pointer-events: none;
 }
 
+/* Depth follows mode.
+   Walking the landing page, the robot belongs BEHIND the copy — its path sweeps across
+   the full width and would otherwise sit on top of whatever you are reading, which is
+   unavoidable on narrow screens where the text is centred. Pinned to the edge on hub
+   pages it belongs in front, above the scene's opaque backdrop. */
+#robot-layer[data-mode='full'] {
+  z-index: 0;
+}
+
+#robot-layer[data-mode='head'] {
+  z-index: var(--z-robot);
+}
+
 #scene-root {
   position: relative;
   z-index: var(--z-scene);
