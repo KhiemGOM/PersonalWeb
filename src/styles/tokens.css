@@ -53,12 +53,13 @@
   --radius: 10px;
   --radius-pill: 999px;
 
-  /* ---- Robot floor lane ----
-     The band along the bottom of the viewport the robot drives in. Landing sections
-     reserve it as bottom padding so copy never enters it — the only reliable way to keep
-     the robot off centred text, which has no left or right side to dodge to.
-     Must clear the full rig height: camera head, mast, and chassis. */
-  --robot-lane: clamp(11rem, 26vh, 15rem);
+  /* ---- Robot lane ----
+     The robot rides at mid-height now, beside the copy rather than below it, so
+     clearance is a horizontal matter — handled by the path's x values in
+     content/journey.js, not by reserving vertical space here. There is deliberately no
+     --robot-lane token: an earlier version reserved a band along the bottom of every
+     section, which left the layout looking hollow and did not help anyway, since the
+     robot passes down through every text block at some point regardless. */
 
   /* ---- Motion ----
      Two speeds, deliberately far apart (docs/CONCEPT.md, "Timing & motion principles").

@@ -1,71 +1,69 @@
 /**
  * The robot's scroll-driven route across the landing page.
  *
- * Waypoints are viewport-relative (0–1) and keyed to scroll progress.
- *
- * Progress is a fraction of TOTAL scrollable height, not section count. With N
- * full-viewport sections the scrollable range is (N-1) viewports, so section k is centred
- * in view at progress k/(N-1). The named stops sit exactly on those values — six
- * sections, so 0, 0.2, 0.4, 0.6, 0.8, 1.0. The dev check in ./landing.js enforces it.
+ * Waypoints are viewport-relative (0–1) and keyed to scroll progress. Named stops sit at
+ * k/(N-1) for N landing sections, which is where section k is centred in view; the dev
+ * check in ./landing.js enforces it.
  *
  * ---------------------------------------------------------------------------
- * WHY THE X VALUES LOOK REPETITIVE — read before editing
+ * WHY Y IS FLAT AT MID-HEIGHT
  *
- * The robot is anchored in the document, so its world position descends steadily as you
- * scroll. Over the length of the page it therefore passes DOWN THROUGH every section's
- * text at some point; there is no y value that avoids them. Vertical clearance is not
- * available, so the path has to solve the problem horizontally:
+ * The robot rides at 0.5, level with the copy, so it has equal room above and below.
+ * An earlier version parked it low, in a reserved floor lane at 0.82. That left ~615px
+ * of viewport above it and only ~125px below, and the consequence was not cosmetic:
+ * trailing while scrolling down stayed comfortably on screen, while the identical trail
+ * scrolling up dropped it off the bottom edge in under half a second. Reversing was not
+ * slower — measured, it was the same speed to within 0.2px/s — it was simply invisible,
+ * and it needed asymmetric acceleration and leash constants to paper over. Centring
+ * removes the cause, so those constants are gone.
+ *
+ * WHY THE X VALUES LOOK REPETITIVE
+ *
+ * The robot is anchored in the document, so it descends past every section's text at
+ * some point. No y avoids them — clearance has to be horizontal:
  *
  *     while descending past a block of text, be on that block's free side;
  *     change sides only in the gaps between blocks.
  *
- * The previous version placed a waypoint halfway between each pair of stops with an x
- * near the centre. That put the sideways crossing at exactly the document height where
- * the next section's text sits, and the path ploughed through all five of them.
+ * So each x is held flat alongside a text block and moves only during a gap. Crossing at
+ * the midpoint between stops — the obvious choice — puts the sideways move at exactly the
+ * document height where the next section's text sits, and the path ploughs through all
+ * five of them.
  *
- * So each x below is held flat across a text block and only moves during a gap. The
- * measured windows, at the current type sizes, are:
+ * Intro and About are centred copy, so they have no free side in the usual sense; the
+ * robot has to sit right out at the margin to clear them.
  *
- *     projects       p 0.07–0.17   text right  -> robot left
- *     academics      p 0.26–0.38   text left   -> robot right
- *     competitions   p 0.46–0.58   text right  -> robot left
- *     misc           p 0.67–0.77   text left   -> robot right
- *     about          p 0.87–0.97   text centre -> robot far right
- *
- * The gaps between those windows are the only safe places to cross, which is why the
- * transitions sit at 0.05, 0.25, 0.44, 0.64 and 0.84.
- *
- * These windows shift if section copy gets longer or the type scale changes. The
- * collision check in ./landing.js recomputes them from the live DOM and will say so.
+ * Verify with the inspector (Shift+D, or ?debug=path) after any change here or to
+ * section copy — the safe windows move with the layout.
  * ---------------------------------------------------------------------------
- *
- * The y values stay flat, in the floor lane (see --robot-lane in tokens.css). Varying
- * them makes the world position advance unevenly against scroll, which reads as the robot
- * lurching — slow, then hurrying to catch up.
  *
  * @type {import('../lib/path.js').Waypoint[]}
  */
 export const JOURNEY = [
-  { progress: 0.0, x: 0.5, y: 0.82, stop: 'intro' },
+  // Measured windows during which the robot is level with each block of text, and so
+  // must already be clear of it. Crossings happen only in the gaps between them.
+  //   intro 0.00–0.06   projects 0.15–0.25   academics 0.34–0.46
+  //   competitions 0.54–0.66   misc 0.75–0.85   about 0.95–1.00
 
-  // Cross left before entering the projects text band at 0.07.
-  { progress: 0.05, x: 0.2, y: 0.81 },
-  { progress: 0.2, x: 0.2, y: 0.82, stop: 'projects' },
+  { progress: 0.0, x: 0.87, y: 0.5, stop: 'intro' },
+  { progress: 0.06, x: 0.87, y: 0.5 },
 
-  // Gap at 0.17–0.26: cross right for academics.
-  { progress: 0.25, x: 0.8, y: 0.81 },
-  { progress: 0.4, x: 0.8, y: 0.82, stop: 'academics' },
+  { progress: 0.145, x: 0.2, y: 0.5 },
+  { progress: 0.2, x: 0.2, y: 0.5, stop: 'projects' },
+  { progress: 0.25, x: 0.2, y: 0.5 },
 
-  // Gap at 0.38–0.46: cross left for competitions.
-  { progress: 0.44, x: 0.2, y: 0.81 },
-  { progress: 0.6, x: 0.2, y: 0.82, stop: 'competitions' },
+  { progress: 0.34, x: 0.8, y: 0.5 },
+  { progress: 0.4, x: 0.8, y: 0.5, stop: 'academics' },
+  { progress: 0.455, x: 0.8, y: 0.5 },
 
-  // Gap at 0.58–0.67: cross right for misc.
-  { progress: 0.64, x: 0.8, y: 0.81 },
-  { progress: 0.8, x: 0.8, y: 0.82, stop: 'misc' },
+  { progress: 0.535, x: 0.2, y: 0.5 },
+  { progress: 0.6, x: 0.2, y: 0.5, stop: 'competitions' },
+  { progress: 0.66, x: 0.2, y: 0.5 },
 
-  // Gap at 0.77–0.87: shift further right — About is centred, so it needs more
-  // clearance than a side-aligned section does.
-  { progress: 0.84, x: 0.87, y: 0.81 },
-  { progress: 1.0, x: 0.87, y: 0.82, stop: 'about' },
+  { progress: 0.745, x: 0.8, y: 0.5 },
+  { progress: 0.8, x: 0.8, y: 0.5, stop: 'misc' },
+  { progress: 0.85, x: 0.8, y: 0.5 },
+
+  { progress: 0.945, x: 0.87, y: 0.5 },
+  { progress: 1.0, x: 0.87, y: 0.5, stop: 'about' },
 ];

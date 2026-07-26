@@ -22,9 +22,6 @@
   display: grid;
   align-items: center;
   padding: var(--space-xl) clamp(var(--space-m), 7vw, var(--space-2xl));
-  /* Reserve the robot's floor lane. Without this, centred sections collide with it —
-     they have no left/right side to align away from. */
-  padding-bottom: var(--robot-lane);
 }
 
 .landing__section[data-align='left'] {

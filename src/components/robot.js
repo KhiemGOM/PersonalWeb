@@ -43,23 +43,28 @@ const LOOK_RANGE = 420;
  *
  * PATH_SMOOTHING damps progress ALONG the route, not position in space — see step().
  */
-const PATH_SMOOTHING = 0.02;
+const PATH_SMOOTHING = 0.035;
 const HEAD_SMOOTHING = 0.07;
 
 /**
- * Reversing gets its own, brisker acceleration.
- *
- * Not because backing up should be quicker — the top speed is identical in both
- * directions — but because the robot sits low in the viewport, in its floor lane. That
- * leaves ~615px of room above it and only ~125px below. Scrolling down, it can trail a
- * long way and still be on screen; scrolling up, the same trail puts it off the bottom
- * edge in under half a second, before it has even finished accelerating, and it stays
- * gone. Identical physics, wildly different experience.
- *
- * Getting up to speed faster in reverse keeps it visible, which is the thing that
- * actually reads as effort. It still trails; you can just see it trailing.
+ * Stops the robot parks beside, in progress order — one per landing section.
  */
-const REVERSE_SMOOTHING = 0.055;
+const STOPS = JOURNEY.filter((w) => w.stop);
+
+/**
+ * How far past its parking spot the view must travel before the robot commits to moving,
+ * measured in sections.
+ *
+ * Without this the robot chases the scroll position continuously and is always drifting
+ * a little, which reads as restless. With it, the robot settles beside a section and
+ * stays there through small scrolls, then drives deliberately to the next one — the
+ * movement means something, because it only happens when you have actually gone
+ * somewhere.
+ *
+ * 0.5 is the largest value that still keeps it on screen: parked at one stop while the
+ * view sits half a section away puts it half a viewport from centre, right at the edge.
+ */
+const MOVE_THRESHOLD_SECTIONS = 0.5;
 
 /**
  * Top speed, in world pixels per second.
@@ -77,36 +82,25 @@ const REVERSE_SMOOTHING = 0.055;
 const MAX_SPEED_PX_PER_SECOND = 780;
 
 /**
- * Furthest the robot may fall behind, in viewport heights.
+ * Furthest the robot may drift from the view, in viewport heights.
  *
- * At top speed a slam to the bottom of the page leaves it roughly 4.5 viewports back and
- * off-screen for about four seconds, which stops reading as "left behind" and starts
- * reading as "gone". This caps the gap.
+ * Flat out, a slam to the far end of the page would otherwise leave it several viewports
+ * adrift and off-screen for seconds, which stops reading as "left behind" and starts
+ * reading as "gone".
  *
- * It does mean that when the robot is very far back it closes the distance faster than
- * its own top speed — but that only ever happens while it is off-screen, so the cheat is
- * unobservable. Everything visible still obeys the speed limit.
+ * Symmetric, now that the robot rides at mid-height and has equal room either side. The
+ * lopsided version this replaced existed only to compensate for it sitting low.
  */
-const MAX_LAG_VIEWPORTS = 1.5;
+const MAX_DRIFT_VIEWPORTS = 1.2;
 
 /**
- * The same leash for reversing, and much tighter for the same reason as
- * REVERSE_SMOOTHING: there are only ~125px of viewport below the robot, so a gap the
- * forward direction wears comfortably puts it far past the bottom edge and out of sight
- * for seconds at a time.
- */
-const MAX_LAG_VIEWPORTS_REVERSE = 0.35;
-
-/**
- * Ceiling on how far the leash may exceed the speed limit, as a multiple of it.
+ * Ceiling on how far the drift limit may exceed the speed limit, as a multiple of it.
  *
- * The forward leash only ever engages while the robot is off the top of the screen, so
- * how fast it hauls itself back is unobservable. The reverse leash is different: it
- * engages while the robot is still visible near the bottom edge, and an unbounded clamp
- * yanks it backwards at over five times its top speed — measured at 4198px/s against a
- * 780 limit, which looks like a glitch rather than a machine hurrying.
+ * The limit can engage while the robot is still on screen, and an unbounded clamp yanks
+ * it along at several times its top speed — measured once at 4198px/s against a 780
+ * limit, which looks like a glitch rather than a machine hurrying.
  */
-const LEASH_MAX_BOOST = 2;
+const DRIFT_MAX_BOOST = 2;
 
 /** How quickly the robot leaves the path to take up its pinned post, and returns. */
 const PIN_SMOOTHING = 0.05;
@@ -230,6 +224,9 @@ export function createRobot(config) {
   /** 0 = following the path, 1 = parked at the pinned post. */
   let pinBlend = 0;
 
+  /** Index into STOPS the robot is currently heading for, or parked at. */
+  let targetStop = 0;
+
   /** @type {string | undefined} */
   let currentStop = JOURNEY[0]?.stop;
 
@@ -308,22 +305,30 @@ export function createRobot(config) {
     const maxStep = budget / Math.max(1, perStart, perEnd);
 
     const start = pathProgress;
-    const reversing = scrolled < start;
 
-    const eased = damp(start, scrolled, reversing ? REVERSE_SMOOTHING : PATH_SMOOTHING, dt);
+    // The robot heads for a section's parking spot, not for the live scroll position.
+    // It re-commits only once the view has moved MOVE_THRESHOLD_SECTIONS past where it
+    // is parked, so small scrolls leave it alone and each move means the visitor has
+    // actually arrived somewhere.
+    const lastStop = STOPS.length - 1;
+    const viewerInSections = scrolled * lastStop;
+    if (Math.abs(viewerInSections - targetStop) > MOVE_THRESHOLD_SECTIONS) {
+      targetStop = clamp(Math.round(viewerInSections), 0, lastStop);
+    }
+    const goal = STOPS[targetStop].progress;
+
+    const eased = damp(start, goal, PATH_SMOOTHING, dt);
     const capped = start + clamp(eased - start, -maxStep, maxStep);
 
-    // Leash, applied after the speed cap. Asymmetric because the room either side of the
-    // robot is asymmetric — see MAX_LAG_VIEWPORTS_REVERSE.
-    const lagAhead = (MAX_LAG_VIEWPORTS * height) / scrollableHeight;
-    const lagBehind = (MAX_LAG_VIEWPORTS_REVERSE * height) / scrollableHeight;
-    const leashed = clamp(capped, scrolled - lagAhead, scrolled + lagBehind);
+    // Never let it get so far from the view that it is gone for seconds at a time.
+    const maxDrift = (MAX_DRIFT_VIEWPORTS * height) / scrollableHeight;
+    const bounded = clamp(capped, scrolled - maxDrift, scrolled + maxDrift);
 
     // Bound the frame's TOTAL displacement, measured from where it started. Applying the
-    // leash as a further increment on top of an already-capped step lets the two stack,
-    // which produced 3x the speed limit rather than the intended 2x.
-    const leashStep = maxStep * LEASH_MAX_BOOST;
-    pathProgress = start + clamp(leashed - start, -leashStep, leashStep);
+    // drift correction as a further increment on top of an already-capped step lets the
+    // two stack, which produced 3x the speed limit rather than the intended 2x.
+    const driftStep = maxStep * DRIFT_MAX_BOOST;
+    pathProgress = start + clamp(bounded - start, -driftStep, driftStep);
 
     const point = getPositionAtProgress(pathProgress, JOURNEY);
     currentStop = point.stop;
@@ -437,6 +442,8 @@ export function createRobot(config) {
       // exact ones: rounding pathProgress to 3dp quantizes world position to several
       // pixels, which at 60fps reads as hundreds of px/s of speed that is not there.
       exact: { pathProgress, x, y, pinBlend },
+      targetStop,
+      targetStopName: STOPS[targetStop]?.stop,
       position: { x: Math.round(x), y: Math.round(y) },
       look: { x: +lookX.toFixed(3), y: +lookY.toFixed(3) },
       tilt: +(lookX * MAX_TILT).toFixed(2),
