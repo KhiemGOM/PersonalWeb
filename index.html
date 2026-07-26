@@ -2,12 +2,36 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>personal_web</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- TODO(copy): title wording is still open — "Khiem's personal dimension" or alt. -->
+    <title>Khiem Nguyen Dang</title>
+    <meta name="description" content="An interactive dimension. Projects, competitions, academics, and the odd corners." />
+
+    <meta property="og:title" content="Khiem Nguyen Dang" />
+    <meta property="og:description" content="An interactive dimension. Projects, competitions, academics, and the odd corners." />
+    <meta property="og:type" content="website" />
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <!-- Persistent layers. The router only ever swaps #scene-root; everything else
+         survives navigation. See src/styles/base.css. -->
+    <div id="robot-layer" aria-hidden="true"></div>
+
+    <main id="scene-root"></main>
+
+    <div id="narrator-root"></div>
+
+    <!-- Announces route changes to screen readers, since navigation never reloads. -->
+    <div id="route-announcer" class="visually-hidden" role="status" aria-live="polite"></div>
+
+    <noscript>
+      <p style="padding: 2rem">
+        This site is an interactive scene and needs JavaScript. The written version of
+        everything here lives on the blog.
+      </p>
+    </noscript>
+
+    <script type="module" src="/src/main.js"></script>
   </body>
 </html>

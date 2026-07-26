@@ -1,0 +1,109 @@
+@import './tokens.css';
+
+/* ---- Reset ---- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  color-scheme: dark;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: var(--step-0);
+  line-height: 1.6;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  line-height: 1.1;
+  font-weight: 600;
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* ---- Shell ----
+   #robot-layer and #contact live OUTSIDE #scene-root, which is the only region the
+   router swaps. That is what lets the robot persist across navigation instead of
+   re-mounting — the whole reason for a client router here. */
+
+#robot-layer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-robot);
+  pointer-events: none;
+}
+
+#scene-root {
+  position: relative;
+  z-index: var(--z-scene);
+  min-height: 100dvh;
+}
+
+#narrator-root {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: var(--z-narrator);
+  pointer-events: none;
+}
+
+/* ---- Utilities ---- */
+.label {
+  font-family: var(--font-display);
+  font-size: var(--step--1);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

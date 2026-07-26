@@ -1,16 +1,39 @@
-# React + Vite
+# Khiem's personal dimension
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+An interactive personal site — a robot companion, four themed hubs, and a deliberate 404
+gag where a job page should be. Not a resume.
 
-Currently, two official plugins are available:
+## Develop
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+npm install
+npm run dev
+```
 
-## React Compiler
+Then open http://localhost:3000.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+npm run build && npm run preview
+```
 
-## Expanding the ESLint configuration
+## Stack
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Vite + vanilla HTML/CSS/JS, no framework. Deployed on Vercel.
+
+## Layout
+
+```
+docs/CONCEPT.md     design intent — read this first
+src/
+  lib/              framework-free helpers (path interpolation, canvas lighting)
+  styles/           design tokens + base styles
+  main.js           entry point
+index.html          persistent shell: robot / scene / narrator layers
+vercel.json         SPA rewrite so deep links resolve
+```
+
+## Status
+
+Ground-up rebuild in progress on `rebuild-vanilla`. Phase 0 (reset + shell) is done; Phase 1
+builds the router, scene renderer, robot, and narrator. The `main` branch holds a snapshot
+of the previous Next.js implementation, kept for reference.

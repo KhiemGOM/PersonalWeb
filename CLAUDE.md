@@ -2,23 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Current state — the build is broken
-
-`npm run build` fails today. `package.json` and `package-lock.json` disagree, and several declared deps are not installed:
-
-| | `package.json` declares | actually installed / locked |
-|---|---|---|
-| next | `14.2.21` | `16.2.9` |
-| react / react-dom | `^18.3.1` | `19.2.7` |
-| framer-motion | `^11.11.9` | **missing** |
-| tailwindcss / postcss / autoprefixer | declared | **missing** |
-
-Failures you will hit: `Module not found: Can't resolve 'framer-motion'` (imported by [FloatingContact.tsx](components/FloatingContact.tsx:3) and [experience/page.tsx](app/experience/page.tsx:7)), and a postcss error because [postcss.config.js](postcss.config.js) loads `tailwindcss`.
-
-Resolve this before debugging anything else. Two coherent paths — pick one and reconcile both files:
-
-- **Stay on Next 16 + React 19** (matches the lockfile): update `package.json` deps, install `framer-motion tailwindcss postcss autoprefixer`, and fix the Next 15+ breaking change noted under *Dynamic routes* below.
-- **Pin back to Next 14 + React 18** (matches `package.json`): delete `node_modules` and `package-lock.json`, reinstall.
+**[docs/CONCEPT.md](docs/CONCEPT.md) is the source of truth for design intent** — what the
+site is, how the robot behaves, art direction, content hierarchy. Read it before proposing
+structural or visual work. This file covers how the code works, not what we're building.
 
 ## Commands
 
@@ -30,104 +16,101 @@ npm run dev
 npm run build
 ```
 
-`npm run lint` is broken: it runs `next lint`, removed in Next 16 (`Invalid project directory provided, no such directory: .../lint`). There is no working lint setup — the root [eslint.config.js](eslint.config.js) is leftover Vite scaffolding (flat config for `.js/.jsx`, referencing `@eslint/js` and `eslint-plugin-react-refresh`, none of which are installed). Either wire up `eslint` + `eslint-config-next` properly or drop the script; don't read anything into its output.
+`npm run preview` serves the production build. There are no tests and no linter yet.
 
-There are no tests and no test runner.
+## Status: Phase 0 complete
 
-## Dead scaffolding — do not edit
+The site is a **ground-up rebuild**. An earlier Next.js App Router implementation was
+cleared out in Phase 0 — it is preserved on the `main` branch (commit "Snapshot: Next.js
+build before vanilla Vite rebuild") and is reference material, not code to extend. Its art
+direction (bold geometric polygons, near-black `#0a0a0a`, five per-section accents) was
+superseded by hand-drawn webtoon art on a single cyan accent. Work happens on
+`rebuild-vanilla`.
 
-The repo still contains the `create-vite` template it was scaffolded from. None of it is reachable from the Next app:
+What exists today: the shell, design tokens, fonts, build pipeline, and two salvaged
+canvas helpers. `src/main.js` renders a placeholder.
 
-`src/` (App.jsx, main.jsx, App.css, index.css, assets/) · `index.html` · `vite.config.js` · `eslint.config.js` · `README.md` (still the stock "React + Vite" readme)
-
-`public/favicon.svg` and `public/icons.svg` are live (Next serves `public/`). Everything else above is safe to delete and is not a source of truth.
+**Phase 1 (next) builds the flexible core, in this dependency order:** router →
+visitor-mode store → scene renderer → robot → narrator → transitions → content data layer.
+Do not build a hub, a detail page, or a minigame before the primitive it sits on exists.
 
 ## Stack
 
-- **Next.js App Router**, TypeScript strict, `@/*` → repo root
-- **Canvas 2D API** — all robot rendering and lighting; no Three.js, no WebGL
-- **Tailwind CSS** — UI/text layers only, never the canvas
-- **Framer Motion** — floating contact button, experience page (currently uninstalled, see above)
+Vite + vanilla HTML/CSS/JS. **No framework** — not React, not Next. Per
+[docs/CONCEPT.md](docs/CONCEPT.md): "revisit only if a strong reason emerges." Plain JS with
+JSDoc types (`jsconfig.json` has `checkJs`), no TypeScript build step. Hosting: Vercel.
 
 ## Architecture
 
-### Canvas system (`components/RobotCanvas.tsx`)
-One `<canvas>` fixed to the viewport, z-index 0, `pointer-events: none`. **Mounted only by [app/page.tsx](app/page.tsx) — every subpage is plain dark HTML with no robot and no lighting.** A `requestAnimationFrame` loop owns all state in closure variables (position, mouse, headAngle, intensity); nothing lives in React state, so the whole system is one `useEffect` with an empty dep array.
+### The shell persists; only the scene swaps
+[index.html](index.html) defines four fixed layers. The router replaces the contents of
+`#scene-root` and **nothing else**:
 
-Per-frame draw order is a contract — `drawLighting` punches holes in a dark overlay via `destination-out`, so it must run between the background fill and the robot:
-
-1. `clearRect` + fill void `#0a0a0a`
-2. `drawLighting()`
-3. `drawRobot()` — drawn *on top* of the overlay, which is what makes it read as lit
-
-Known gaps: the canvas is sized in CSS pixels with no `devicePixelRatio` scaling (blurry on HiDPI), and its fixed positioning is duplicated between the inline `style` prop and the `#world-canvas` rule in [globals.css](app/globals.css:43) — change both or neither.
-
-### Lighting (`lib/lighting.ts`)
-`rgba(10,10,10,0.92)` overlay, then two `destination-out` gradients: an ambient radial pool centered on the robot, and a cone beam originating at `robotY - 52` (hardcoded to match the robot's head offset) aimed at the cursor. Finally a `source-over` accent tint at 8% alpha. The accent hex is parsed with `slice()` — it must be 6-digit `#rrggbb`.
-
-### Robot (`lib/robot.ts`)
-Pure canvas 2D, stateless. Bold flat polygons with hard left/right face shading (two fills per limb: light face + shade face) — no gradients on the robot itself. Every coordinate is multiplied by `scale`, so the whole robot resizes from one parameter. `headAngle` is damped to `* 0.25` inside `drawRobot` — a subtle tilt, not a full rotation.
-
-### Scroll path (`lib/scrollPath.ts`)
-`MAIN_PATH` is an array of `{ progress, xRatio, yRatio, section }` waypoints in scroll order. `getRobotPositionAtProgress()` finds the bracketing pair and lerps. Two behaviors to know:
-
-- The returned `section` flips at the segment midpoint (`t < 0.5 ? from : to`), and a section change in `RobotCanvas` drops `lightIntensity` to `0.2` before it ramps back to 1 — that's the "fade and relight" effect.
-- Actual robot position lerps toward the target at `t=0.05` per frame. That lag *is* the physical trail feel; raising it makes the robot feel weightless.
-
-Scroll progress is `scrollY / (document.body.scrollHeight - innerHeight)`, so waypoint `progress` values are relative to total page height, not section count. Adding or removing a section shifts every waypoint.
-
-### Page structure
 ```
-app/
-  page.tsx                  — main scrollable page, 5 sections + RobotCanvas
-  about/page.tsx            — hobbies
-  projects/page.tsx         — hub          projects/[slug]/page.tsx      — deep page
-  competitions/page.tsx     — hub          competitions/[slug]/page.tsx  — deep page
-  misc/page.tsx             — hub          misc/[slug]/page.tsx          — deep page
-  experience/page.tsx       — intentional 404
+#robot-layer      persists — robot never re-mounts across navigation
+#scene-root       swapped by the router
+#narrator-root    persists — dialogue + transcript
+#route-announcer  aria-live, since navigation never reloads the page
 ```
-Main-page sections (`components/sections/`) are transparent over the canvas — never give them background colors.
 
-### Content is hardcoded per-file, and duplicated
-There is no CMS, no data directory, no fetching. Each page declares its content as a module-level `const` at the top of its own file. Deep pages key that const by slug and feed `generateStaticParams()` from `Object.keys()`.
+This is the entire reason the project uses a client router instead of Vite's multi-page
+mode. If a change would force the robot to re-mount, it's the wrong change.
 
-**The same content lives in two or three places per section** — e.g. Lectify appears in [ProjectsSection.tsx](components/sections/ProjectsSection.tsx:3) (name only), [projects/page.tsx](app/projects/page.tsx:3) (hub card), and `app/projects/[slug]/page.tsx:13` (full record). Adding or renaming an entry means editing all of them; the slug in the hub list must match the key in the deep-page record or the link falls into the "not found" branch.
+### Routing
+History API with real paths (`/projects/minecraft-pathfinding`), not hashes — URLs must
+reflect actual content hierarchy. Vite's dev server does SPA fallback by default;
+production needs the matching rewrite in [vercel.json](vercel.json). The negative-lookahead
+in that rewrite exempts `assets/`, `favicon`, and `icons` so real files aren't swallowed by
+the fallback — extend it when adding top-level static paths.
 
-### Dynamic routes and Next 16
-All three `[slug]` pages type `params` as `{ slug: string }` and read `params.slug` synchronously. Next 15+ makes `params` a Promise — if the repo lands on Next 16, these components must become `async` and `await params`.
+### Content is data, never markup
+Every achievement is **one entry** carrying hub placement, detail copy, robot reaction, and
+blog crosslink together. Adding one is a new data file; it must never require touching
+layout code. Hubs render from config: object position, asset, label, hover, link.
 
-### Section accent colors
-| Section | Color |
-|---|---|
-| hero | `#f5c842` |
-| about | `#4a9eff` |
-| projects | `#ff6b4a` |
-| competitions | `#7c4aff` |
-| misc | `#4aff9e` |
+This is a direct correction of the previous build, where each project's copy was duplicated
+across three files and drifted. If you find yourself writing the same title twice, stop.
 
-These hexes are defined in **three** places: `SECTION_ACCENTS` in [RobotCanvas.tsx](components/RobotCanvas.tsx:13), the `accent-*` tokens in [tailwind.config.ts](tailwind.config.ts:11), and arbitrary-value classes (`text-[#ff6b4a]`) throughout every section and page. The Tailwind tokens are currently unused — pages use raw hex. Changing an accent means grepping the hex, not editing one constant.
+### Design tokens
+[src/styles/tokens.css](src/styles/tokens.css) is the only place a color, font, duration, or
+z-index is defined. **Never hardcode a hex or a ms value in a component.** The old build
+scattered accents across a JS constant, a Tailwind token, and inline classes; changing a
+color meant grepping for it.
 
-Note also that `tailwind.config.ts` maps `font-sans` to `var(--font-geist-sans)`, which is never defined — no `next/font` is set up in [layout.tsx](app/layout.tsx), so text falls through to `system-ui`.
+Two motion speeds, deliberately far apart, and they must not blur together:
+- `--tempo-pop` / `--tempo-hover` (~180–240ms) — object interactions. Frequent, must feel instant
+- `--tempo-flicker` / `--tempo-lightup` (~520–900ms) — scene transitions. Rare, mood-setting
 
-### Floating contact button
-Rendered in root [layout.tsx](app/layout.tsx:19) via `<FloatingContact />` — present on every page, fixed bottom-right, z-50.
+`:root[data-mode='hurry']` collapses the slow tempos to near-zero, and the reduced-motion
+query zeroes all four.
 
-## Aesthetic rules
-- Geometric robot: bold flat polygons, hard shading (light face / dark face), no gradients on the robot
-- Palette: near-black void, section accent, off-white `#e8e0d4` body, muted `#a89f94` for secondary text
-- Text: sparse; uppercase `tracking-[0.3em]` labels, large bold headings
-- Everything outside the light radius is near-black — do not add background colors to sections
-- Deep pages follow a fixed rhythm: `← Back` link, uppercase tag, huge title, tagline, two-column body, accent-bordered demo box
+### Visitor mode
+Set on landing, session-scoped, switchable. Guided mode narrates; hurry mode shows
+everything immediately with no dialogue. Components read `data-mode` off `<html>` and let
+CSS do the branching, rather than testing the mode at every call site. Anything narrated
+needs a skip path — typewriter effects must complete on click.
 
-## Known placeholders
-- `mailto:khiem@example.com` in [FloatingContact.tsx](components/FloatingContact.tsx:8) and [experience/page.tsx](app/experience/page.tsx:27) — the real address is `khiem07062007@gmail.com`
-- Competition `result` fields read `"[fill in]"`
-- Every deep page's interactive demo is a bordered "Coming soon." box; `demoLabel` describes the intent
-- The experience page's robot-fall animation is a TODO — only the text reassembly exists
+### Salvaged canvas helpers
+[src/lib/path.js](src/lib/path.js) — waypoint interpolation for the scroll-driven robot
+journey on `/`. `damp()` is frame-rate-independent; use it instead of a raw per-frame lerp,
+which runs ~2× faster on a 120Hz display.
 
-## Deep pages — planned interactives
-- `projects/[slug]` — a minigame/demo per project showing why the problem was hard
-- `competitions/ioai` — tune a linear regression
-- `competitions/ftc` — drive a robot (Nav2-style)
-- `misc/emergence-loop` — scale-of-the-universe minigame
-- `experience` — robot falls over, page reassembles into the hire-me message
+[src/lib/lighting.js](src/lib/lighting.js) — `destination-out` light compositing (dark
+everywhere, holes punched where light falls). **Candidate for replacement** by CSS radial
+gradients over hand-drawn art; decide during Phase 1 transitions. `fitCanvas()` handles
+`devicePixelRatio` — the old build didn't, hence blurry HiDPI rendering.
+
+## Art assets
+
+Hand-drawn webtoon style, per [docs/CONCEPT.md](docs/CONCEPT.md) — soft wiggly linework, not
+corporate flat vector. Until real art lands, every asset is a crude but correctly-shaped
+placeholder behind a stable path, so swapping in finals touches no code.
+
+The robot's **head is a separate asset from its body** — that's what makes head-only pinned
+mode possible on hub pages. Don't merge them into one sprite.
+
+## Conventions
+- `@/` aliases `src/`
+- Hub scene coordinates are normalized 0–1 against an aspect-locked stage, so placement
+  survives any viewport
+- Achievement detail text is dense and skimmable. Only the robot speaks in dialogue register

@@ -1,0 +1,91 @@
+/**
+ * Design tokens. Values come from docs/CONCEPT.md — change them there first.
+ *
+ * Nothing in the codebase should hardcode a hex. The previous build scattered the same
+ * accent across three places (a JS constant, a Tailwind token, and inline classes), and
+ * changing a color meant grepping for it. Everything reads from here instead.
+ */
+
+:root {
+  /* ---- Core palette ---- */
+  --bg: #0d0d0f;
+  --accent: #00c4a0;
+  --text: #e8e6e0;
+  --surface: #2a2a2e;
+
+  /* ---- Derived ---- */
+  --text-muted: color-mix(in srgb, var(--text) 62%, var(--bg));
+  --text-faint: color-mix(in srgb, var(--text) 38%, var(--bg));
+  --accent-dim: color-mix(in srgb, var(--accent) 55%, var(--bg));
+  --accent-glow: color-mix(in srgb, var(--accent) 28%, transparent);
+  --surface-raised: color-mix(in srgb, var(--surface) 80%, var(--text));
+  --hairline: color-mix(in srgb, var(--text) 14%, transparent);
+
+  /* ---- Scene lighting ----
+     Each hub fades up its own light source after a transition. Warm/cool per scene;
+     the mood difference between a library lamp and a lab fluorescent lives here. */
+  --light-lab: #cfe8ff;         /* fluorescent, cool */
+  --light-library: #ffcf8f;     /* lamp, warm */
+  --light-podium: #fff4d6;      /* spotlight, near-white */
+  --light-pool: #7fffe4;        /* pool glow, cyan-leaning */
+
+  /* ---- Type ---- */
+  --font-display: 'Space Grotesk Variable', system-ui, sans-serif;
+  --font-body: 'Inter Variable', system-ui, sans-serif;
+
+  --step--1: clamp(0.83rem, 0.8rem + 0.15vw, 0.9rem);
+  --step-0: clamp(1rem, 0.95rem + 0.25vw, 1.13rem);
+  --step-1: clamp(1.35rem, 1.2rem + 0.7vw, 1.8rem);
+  --step-2: clamp(1.8rem, 1.5rem + 1.5vw, 2.8rem);
+  --step-3: clamp(2.4rem, 1.8rem + 3vw, 4.5rem);
+
+  --tracking-label: 0.22em;
+
+  /* ---- Space ---- */
+  --space-2xs: 0.25rem;
+  --space-xs: 0.5rem;
+  --space-s: 0.875rem;
+  --space-m: 1.5rem;
+  --space-l: 2.5rem;
+  --space-xl: 4rem;
+  --space-2xl: 7rem;
+
+  --radius: 10px;
+  --radius-pill: 999px;
+
+  /* ---- Motion ----
+     Two speeds, deliberately far apart (docs/CONCEPT.md, "Timing & motion principles").
+     Object interactions are frequent and must feel instant. Scene transitions are rare
+     and are allowed to take a beat. Never blur the two. */
+  --tempo-pop: 180ms;
+  --tempo-hover: 240ms;
+  --tempo-flicker: 520ms;
+  --tempo-lightup: 900ms;
+
+  --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* ---- Layers ---- */
+  --z-scene: 1;
+  --z-objects: 10;
+  --z-robot: 20;
+  --z-narrator: 30;
+  --z-contact: 40;
+  --z-transition: 50;
+}
+
+/* Guided mode narrates; hurry mode shows everything at once and skips the performance.
+   Components read this attribute instead of branching in JS at every call site. */
+:root[data-mode='hurry'] {
+  --tempo-flicker: 0ms;
+  --tempo-lightup: 120ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --tempo-pop: 0ms;
+    --tempo-hover: 0ms;
+    --tempo-flicker: 0ms;
+    --tempo-lightup: 0ms;
+  }
+}
