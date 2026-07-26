@@ -132,6 +132,77 @@ const BEAM_FEATHER_FACTOR = 0.055;
 const easeOut = (t) => 1 - Math.pow(1 - t, 3);
 
 /**
+ * Seeded random, so a flicker is reproducible.
+ *
+ * Math.random would do visually, but then the effect could only ever be eyeballed — and
+ * "it looked fine the three times I watched it" is not much of a check on something whose
+ * whole job is being irregular. With a seed the same sequence can be replayed and
+ * measured.
+ *
+ * @param {number} seed
+ */
+function seededRandom(seed) {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * An unreliable light.
+ *
+ * Long stretches of nothing, then a short burst of stuttering. Real lights do not shimmer
+ * continuously — a steady sine would read as a pulsing effect, which is a different thing
+ * entirely and much more obviously artificial. Within a burst the level is held for a few
+ * dozen milliseconds at a time rather than interpolated, because the whole character of a
+ * failing lamp is the discontinuity.
+ *
+ * @param {Object} config
+ * @param {number} config.seed
+ * @param {number} config.depth       How far it dips, 0–1
+ * @param {[number, number]} config.gap    ms between bursts
+ * @param {[number, number]} config.burst  ms a burst lasts
+ */
+function createFlicker({ seed, depth, gap, burst }) {
+  const random = seededRandom(seed);
+  const between = ([lo, hi]) => lo + random() * (hi - lo);
+
+  let untilBurst = between(gap);
+  let burstLeft = 0;
+  let holdLeft = 0;
+  let level = 1;
+
+  return {
+    /** @param {number} dt @returns {number} multiplier, 0–1 */
+    step(dt) {
+      if (burstLeft > 0) {
+        burstLeft -= dt;
+        holdLeft -= dt;
+        if (holdLeft <= 0) {
+          level = 1 - depth * random();
+          holdLeft = 18 + random() * 46;
+        }
+        if (burstLeft <= 0) level = 1;
+        return level;
+      }
+
+      untilBurst -= dt;
+      if (untilBurst <= 0) {
+        burstLeft = between(burst);
+        untilBurst = between(gap);
+        holdLeft = 0;
+      }
+      return 1;
+    },
+
+    debug: () => ({ level: +level.toFixed(2), bursting: burstLeft > 0 }),
+  };
+}
+
+/**
  * @param {Object} config
  * @param {HTMLElement} config.root
  */
@@ -166,6 +237,28 @@ export function createLighting(config) {
   /** 0 = lit, 1 = every light out. Everything below is scaled through it. */
   let blackout = 0;
   let blackoutTarget = 0;
+
+  // Separate seeds, so the room light and the robot's torch never stutter together. Two
+  // lights failing in unison reads as one scripted effect; independently, it reads as two
+  // pieces of unreliable equipment, which is the point.
+  //
+  // The room dips less and less often than the torch — a fixture in a building against a
+  // lamp being carried around on a machine.
+  const spotlightFlicker = createFlicker({
+    seed: 0x5eed,
+    depth: 0.3,
+    gap: [5200, 15000],
+    burst: [90, 260],
+  });
+
+  const torchFlicker = createFlicker({
+    seed: 0xb0b,
+    depth: 0.55,
+    gap: [2600, 9000],
+    burst: [70, 320],
+  });
+
+  const stillness = window.matchMedia?.('(prefers-reduced-motion: reduce)');
 
   function resize() {
     ({ width, height } = fitCanvas(canvas, ctx));
@@ -259,10 +352,21 @@ export function createLighting(config) {
 
     const lit = 1 - blackout;
     const staged = stage();
+
+    // Only once the room has settled. The opening is a composed sequence with its own
+    // timing, and a random stutter landing in the middle of it would look like a fault
+    // rather than a flourish.
+    const steady = staged.ambient >= 1 && !stillness?.matches;
+    const spotDip = steady ? spotlightFlicker.step(dt) : 1;
+    // The torch and the robot's own lamp are one piece of equipment, so they fail
+    // together — the machine browns out, rather than its beam doing so independently of
+    // the light on its own chassis.
+    const torchDip = steady ? torchFlicker.step(dt) : 1;
+
     const darkness = lerp(staged.darkness, 1, blackout);
-    const ambient = staged.ambient * lit;
-    const eyeGlow = staged.eyeGlow * lit;
-    const cone = staged.cone * lit;
+    const ambient = staged.ambient * lit * spotDip;
+    const eyeGlow = staged.eyeGlow * lit * torchDip;
+    const cone = staged.cone * lit * torchDip;
 
     if (target) {
       if (!focusInitialised) {
@@ -397,6 +501,7 @@ export function createLighting(config) {
       ...stage(),
       tint,
       blackout: +blackout.toFixed(3),
+      flicker: { spotlight: spotlightFlicker.debug(), torch: torchFlicker.debug() },
       focus: { x: Math.round(focusX), y: Math.round(focusY), radius: Math.round(focusRadius) },
     }),
   };
