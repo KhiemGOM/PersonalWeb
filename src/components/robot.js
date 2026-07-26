@@ -47,6 +47,21 @@ const PATH_SMOOTHING = 0.02;
 const HEAD_SMOOTHING = 0.07;
 
 /**
+ * Reversing gets its own, brisker acceleration.
+ *
+ * Not because backing up should be quicker — the top speed is identical in both
+ * directions — but because the robot sits low in the viewport, in its floor lane. That
+ * leaves ~615px of room above it and only ~125px below. Scrolling down, it can trail a
+ * long way and still be on screen; scrolling up, the same trail puts it off the bottom
+ * edge in under half a second, before it has even finished accelerating, and it stays
+ * gone. Identical physics, wildly different experience.
+ *
+ * Getting up to speed faster in reverse keeps it visible, which is the thing that
+ * actually reads as effort. It still trails; you can just see it trailing.
+ */
+const REVERSE_SMOOTHING = 0.055;
+
+/**
  * Top speed, in world pixels per second.
  *
  * Damping alone can never be outrun: it always closes the same FRACTION of the remaining
@@ -73,6 +88,25 @@ const MAX_SPEED_PX_PER_SECOND = 780;
  * unobservable. Everything visible still obeys the speed limit.
  */
 const MAX_LAG_VIEWPORTS = 1.5;
+
+/**
+ * The same leash for reversing, and much tighter for the same reason as
+ * REVERSE_SMOOTHING: there are only ~125px of viewport below the robot, so a gap the
+ * forward direction wears comfortably puts it far past the bottom edge and out of sight
+ * for seconds at a time.
+ */
+const MAX_LAG_VIEWPORTS_REVERSE = 0.35;
+
+/**
+ * Ceiling on how far the leash may exceed the speed limit, as a multiple of it.
+ *
+ * The forward leash only ever engages while the robot is off the top of the screen, so
+ * how fast it hauls itself back is unobservable. The reverse leash is different: it
+ * engages while the robot is still visible near the bottom edge, and an unbounded clamp
+ * yanks it backwards at over five times its top speed — measured at 4198px/s against a
+ * 780 limit, which looks like a glitch rather than a machine hurrying.
+ */
+const LEASH_MAX_BOOST = 2;
 
 /** How quickly the robot leaves the path to take up its pinned post, and returns. */
 const PIN_SMOOTHING = 0.05;
@@ -273,12 +307,23 @@ export function createRobot(config) {
     const perEnd = speedPerProgress(clamp(tentative), JOURNEY, scale, scrollableHeight);
     const maxStep = budget / Math.max(1, perStart, perEnd);
 
-    const eased = damp(pathProgress, scrolled, PATH_SMOOTHING, dt);
-    pathProgress += clamp(eased - pathProgress, -maxStep, maxStep);
+    const start = pathProgress;
+    const reversing = scrolled < start;
 
-    // Leash, applied after the speed cap so it only ever bites off-screen.
-    const maxLag = (MAX_LAG_VIEWPORTS * height) / scrollableHeight;
-    pathProgress = clamp(pathProgress, scrolled - maxLag, scrolled + maxLag);
+    const eased = damp(start, scrolled, reversing ? REVERSE_SMOOTHING : PATH_SMOOTHING, dt);
+    const capped = start + clamp(eased - start, -maxStep, maxStep);
+
+    // Leash, applied after the speed cap. Asymmetric because the room either side of the
+    // robot is asymmetric — see MAX_LAG_VIEWPORTS_REVERSE.
+    const lagAhead = (MAX_LAG_VIEWPORTS * height) / scrollableHeight;
+    const lagBehind = (MAX_LAG_VIEWPORTS_REVERSE * height) / scrollableHeight;
+    const leashed = clamp(capped, scrolled - lagAhead, scrolled + lagBehind);
+
+    // Bound the frame's TOTAL displacement, measured from where it started. Applying the
+    // leash as a further increment on top of an already-capped step lets the two stack,
+    // which produced 3x the speed limit rather than the intended 2x.
+    const leashStep = maxStep * LEASH_MAX_BOOST;
+    pathProgress = start + clamp(leashed - start, -leashStep, leashStep);
 
     const point = getPositionAtProgress(pathProgress, JOURNEY);
     currentStop = point.stop;
