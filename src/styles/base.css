@@ -32,9 +32,13 @@ body {
      Scrolls with the document rather than fixed to the viewport, so the robot travels
      past it instead of dragging it along. */
   background-color: var(--bg);
+  /* Coloured, not white. The torch is near-white, so a near-white speck lit by it simply
+     dissolves into the beam — the texture disappeared exactly where the light was
+     strongest, which is the opposite of the point. Cyan and a warm ochre both stay
+     legible under a white light because they differ in hue, not only in brightness. */
   background-image:
-    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--text) 24%, transparent) 1px, transparent 1.6px),
-    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--accent) 16%, transparent) 1.4px, transparent 2px),
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--accent) 34%, transparent) 1px, transparent 1.6px),
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, #c98f4a 26%, transparent) 1.4px, transparent 2px),
     radial-gradient(ellipse 70% 50% at 30% 20%, color-mix(in srgb, var(--text) 4%, transparent), transparent 70%);
   background-size:
     46px 46px,

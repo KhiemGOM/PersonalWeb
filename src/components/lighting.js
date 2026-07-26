@@ -84,10 +84,12 @@ const BEAM_COLOR = '#dff7f0';
 /**
  * How hard the beam adds light on top of what it has already uncovered.
  *
- * Modest. The first attempt stacked five wedges under `lighter` and saturated the core to
- * 243 of 255 — a white slab, which is exactly what a blown-out highlight looks like.
+ * Kept low. Two earlier attempts were too strong: stacking five wedges under `lighter`
+ * saturated the core to 243 of 255, and even the single-wedge version at 0.52 read as
+ * glare rather than illumination. A torch bright enough to blow out what it is pointed at
+ * defeats itself — the whole job is revealing the texture underneath, not replacing it.
  */
-const BEAM_GLOW = 0.52;
+const BEAM_GLOW = 0.26;
 
 /** Blur radius on the beam, in px. What keeps the wedge from reading as a polygon. */
 const BEAM_FEATHER = 46;
