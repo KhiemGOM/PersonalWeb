@@ -1,0 +1,125 @@
+/**
+ * Narrator — bubble plus transcript, bottom-left, alongside the pinned robot head.
+ *
+ * The transcript is the durable record; the bubble is the performance. In hurry mode the
+ * bubble never appears at all.
+ */
+
+.narrator {
+  position: absolute;
+  left: clamp(var(--space-m), 4vw, var(--space-xl));
+  bottom: var(--space-m);
+  width: min(38ch, calc(100vw - 2 * var(--space-m)));
+  display: grid;
+  gap: var(--space-xs);
+  pointer-events: none;
+}
+
+/* ---- Transcript ---- */
+
+.narrator__transcript {
+  list-style: none;
+  display: grid;
+  gap: var(--space-2xs);
+  max-height: 32vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  pointer-events: auto;
+}
+
+.narrator__transcript:empty {
+  display: none;
+}
+
+.narrator__entry {
+  font-size: var(--step--1);
+  line-height: 1.45;
+  color: var(--text-muted);
+  padding-left: var(--space-s);
+  border-left: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  animation: entry-in var(--tempo-pop) var(--ease-out) both;
+}
+
+@keyframes entry-in {
+  from {
+    opacity: 0;
+    translate: 0 4px;
+  }
+}
+
+/* ---- Bubble ---- */
+
+.narrator__bubble {
+  padding: var(--space-s) var(--space-m);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  translate: 0 6px;
+  transition:
+    opacity var(--tempo-pop) var(--ease-out),
+    translate var(--tempo-pop) var(--ease-out);
+}
+
+.narrator[data-state='narrate'] .narrator__bubble,
+.narrator[data-state='react'] .narrator__bubble {
+  opacity: 1;
+  translate: 0 0;
+}
+
+/* Reactions are asides, so they read lighter than a hub introduction. */
+.narrator[data-state='react'] .narrator__bubble {
+  background: transparent;
+  border-color: transparent;
+  backdrop-filter: none;
+  padding-inline: 0;
+}
+
+.narrator__line {
+  font-size: var(--step-0);
+  line-height: 1.5;
+  color: var(--text);
+  min-height: 1.5em;
+}
+
+.narrator[data-state='react'] .narrator__line {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Caret, so a paused line reads as mid-sentence rather than finished. */
+.narrator[data-state='narrate'] .narrator__line::after,
+.narrator[data-state='react'] .narrator__line::after {
+  content: '';
+  display: inline-block;
+  width: 0.5ch;
+  height: 1em;
+  margin-left: 1px;
+  translate: 0 0.15em;
+  background: var(--accent);
+  animation: caret 1s steps(2) infinite;
+}
+
+@keyframes caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Hurry mode: no performance at all. The transcript still carries every line. */
+:root[data-mode='hurry'] .narrator__bubble {
+  display: none;
+}
+
+@media (max-width: 44rem) {
+  .narrator {
+    left: var(--space-m);
+    right: var(--space-m);
+    width: auto;
+  }
+
+  .narrator__transcript {
+    max-height: 24vh;
+  }
+}

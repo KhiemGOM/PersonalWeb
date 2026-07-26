@@ -36,11 +36,24 @@ const LOOK_RANGE = 420;
  *
  * PATH_SMOOTHING damps progress ALONG the route, not position in space — see step().
  */
-const PATH_SMOOTHING = 0.055;
-const HEAD_SMOOTHING = 0.11;
+const PATH_SMOOTHING = 0.02;
+const HEAD_SMOOTHING = 0.07;
+
+/**
+ * Top speed, in path-progress per second.
+ *
+ * Damping alone can never be outrun: it always closes the same FRACTION of the remaining
+ * gap per frame, so a huge scroll jump just produces a huge initial velocity and the
+ * robot keeps pace with anything. A real vehicle has a maximum speed instead — so this
+ * caps how fast progress can change, and scrolling faster than the robot can drive
+ * genuinely leaves it behind, to catch up in its own time.
+ *
+ * 0.2 means a full traverse of the route takes ~5s flat out.
+ */
+const MAX_PROGRESS_PER_SECOND = 0.2;
 
 /** How quickly the robot leaves the path to take up its pinned post, and returns. */
-const PIN_SMOOTHING = 0.07;
+const PIN_SMOOTHING = 0.05;
 
 /** Where the head sits in 'head' mode, pinned against the left edge. */
 const PINNED_X = 78;
@@ -216,7 +229,12 @@ export function createRobot(config) {
     // through whatever happens to be between two waypoints. Damping progress instead
     // means the position is always read back off the path itself, so the robot is
     // bounded by the route at every instant while still accelerating into it.
-    pathProgress = damp(pathProgress, scrollProgress(), PATH_SMOOTHING, dt);
+    // Damping gives the ease in and out; the speed cap gives it a top gear it cannot
+    // exceed. Together: gentle scrolls are followed smoothly, fast ones outrun it.
+    const eased = damp(pathProgress, scrollProgress(), PATH_SMOOTHING, dt);
+    const maxStep = MAX_PROGRESS_PER_SECOND * (dt / 1000);
+    pathProgress += clamp(eased - pathProgress, -maxStep, maxStep);
+
     const point = getPositionAtProgress(pathProgress, JOURNEY);
     currentStop = point.stop;
 

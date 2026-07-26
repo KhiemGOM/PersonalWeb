@@ -1,6 +1,7 @@
 import { createScene } from '../components/scene.js';
 import { getHub } from '../content/hubs.js';
 import { itemsForHub } from '../content/items.js';
+import { getNarrator } from '../core/shell.js';
 import '../styles/scene.css';
 
 /** @param {import('../core/router.js').ViewContext} ctx */
@@ -16,6 +17,11 @@ export function render(ctx) {
 
   const scene = createScene({ hub, items: itemsForHub(hub.slug) });
   active = scene;
+
+  // The narrator itself decides whether to perform this or just record it — that is a
+  // visitor-mode question, not a view one.
+  getNarrator()?.say(hub.narration);
+
   return scene.element;
 }
 

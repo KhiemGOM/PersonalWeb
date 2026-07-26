@@ -9,22 +9,15 @@
  * what you are reading.
  */
 
-/* Snap to section boundaries.
-   The robot is fixed to the viewport while sections scroll past, so an incoming
-   section's text necessarily sweeps down through the robot's lane on its way up — no
-   amount of per-section padding can prevent that, since the text occupies every part of
-   the viewport at some point during its travel. Settled positions are clean; snapping
-   keeps the visitor from resting in the overlapping states in between.
-
-   `proximity`, not `mandatory`: mandatory hijacks small deliberate scrolls and makes the
-   page feel like it is fighting you.
-   Scoped with :has() so hub pages, which scroll normally, are unaffected. */
-:root:has(.landing) {
-  scroll-snap-type: y proximity;
-}
+/* NO SCROLL SNAP HERE, deliberately.
+   Snapping was tried as a way to keep the visitor out of the states where an incoming
+   section's text passes through the robot's lane. Even at `proximity` it swallowed small
+   deliberate scrolls — nudge the wheel, get pulled back to where you started, and the
+   page reads as broken. Free scrolling beats tidier transitions.
+   The overlap it was hiding is harmless: the robot renders behind the copy while
+   walking, so it passes behind rather than over. */
 
 .landing__section {
-  scroll-snap-align: start;
   min-height: 100dvh;
   display: grid;
   align-items: center;

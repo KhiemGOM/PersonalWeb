@@ -1,6 +1,7 @@
 import { scaffold } from './shared.js';
 import { getHub } from '../content/hubs.js';
 import { getItem } from '../content/items.js';
+import { getNarrator } from '../core/shell.js';
 
 /** @param {import('../core/router.js').ViewContext} ctx */
 export const title = (ctx) => {
@@ -25,6 +26,9 @@ export function render(ctx) {
       links: [{ href: `/${ctx.meta.hub}`, text: `← ${hub?.title ?? 'Back'}` }],
     });
   }
+
+  // An aside, not a narration: it fades on its own and is never recorded.
+  if (item.robotLine) getNarrator()?.react(item.robotLine);
 
   return scaffold({
     label: item.kicker,
