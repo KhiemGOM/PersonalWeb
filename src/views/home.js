@@ -69,7 +69,14 @@ export function render() {
     'div',
     { className: 'landing' },
     SECTIONS.map(renderSection),
-    el('p', { className: 'landing__hint', 'aria-hidden': 'true' }, 'Scroll')
+    el(
+      'p',
+      { className: 'landing__hint', 'aria-hidden': 'true' },
+      el('span', { className: 'landing__hint-label' }, 'Scroll'),
+      // Fills while a new section is holding the visitor, so the pause is legibly a
+      // pause rather than the page having stopped working.
+      el('span', { className: 'landing__hint-bar', 'data-dwell-progress': '' })
+    )
   );
 }
 

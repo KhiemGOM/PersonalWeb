@@ -121,6 +121,59 @@
   }
 }
 
+/* ---- Dwell ----
+   A new section holds onward scrolling for a moment on the first pass. Silence during
+   that would be indistinguishable from a page that had stopped responding, so the hint
+   turns into a progress bar for the duration. */
+
+.landing__hint-bar {
+  display: none;
+  width: 5rem;
+  height: 2px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--text) 20%, transparent);
+  overflow: hidden;
+}
+
+/* The animation lives on the marked element itself, not a pseudo-element: the gate
+   restarts it through getAnimations(), which cannot reach into ::after. It restarts on
+   every attempt to scroll on, so the bar visibly resets and the rule — stop moving to
+   move on — is legible without being written down anywhere. */
+.landing__hint-bar {
+  --fill: var(--accent);
+  background:
+    linear-gradient(var(--fill), var(--fill)) left / 0% 100% no-repeat,
+    color-mix(in srgb, var(--text) 20%, transparent);
+  animation: dwell-fill var(--dwell-ms, 3000ms) linear forwards;
+  animation-play-state: paused;
+}
+
+:root[data-dwell] .landing__hint-bar {
+  animation-play-state: running;
+}
+
+:root[data-dwell] .landing__hint {
+  animation: none;
+  opacity: 1;
+}
+
+:root[data-dwell] .landing__hint-label {
+  display: none;
+}
+
+:root[data-dwell] .landing__hint-bar {
+  display: block;
+}
+
+@keyframes dwell-fill {
+  from {
+    background-size: 0% 100%;
+  }
+  to {
+    background-size: 100% 100%;
+  }
+}
+
 /* ---- Narrow viewports ----
    The robot's path sweeps across the full width, which on a phone means it crosses
    directly over the text. Centre everything and let the robot pass behind. */

@@ -19,7 +19,7 @@ import { createNarrator } from './components/narrator.js';
 import { createLighting } from './components/lighting.js';
 import { setShell } from './core/shell.js';
 import { refreshFocusTargets, resolveFocus } from './core/focus.js';
-import { createScrollAssist } from './core/scroll-assist.js';
+import { createScrollGate } from './core/scroll-gate.js';
 import { lockScroll, unlockScroll } from './core/scroll-lock.js';
 import { routes, notFound } from './routes.js';
 import * as visitor from './core/visitor-mode.js';
@@ -56,7 +56,7 @@ const lighting = createLighting({ root: must('#light-layer') });
 setShell({ robot, narrator });
 createSoundToggle();
 
-const scrollAssist = createScrollAssist();
+const scrollGate = createScrollGate();
 
 // Hold the page still through the opening. The light show is two and a half seconds and
 // plays exactly once; scrolling during it means the spotlight opens onto a section the
@@ -66,7 +66,7 @@ const scrollAssist = createScrollAssist();
 // during it would mean a page that refuses to move until the visitor works out that they
 // have to dismiss something first — the sort of thing that reads as a broken site rather
 // than a considered one.
-lockScroll('intro', 6000);
+lockScroll('intro', { maxMs: 6000 });
 if (!lighting.isIntroDone()) window.scrollTo(0, 0);
 
 // The narrator types on its own clock. The robot runs its own rAF loop for motion, but
@@ -125,9 +125,9 @@ const router = createRouter({
 
     // A new view brings new things worth lighting, and new sections to settle onto.
     refreshFocusTargets();
-    scrollAssist.refresh();
-    // Someone in a hurry did not ask to be eased through anything.
-    if (!visitor.isGuided()) scrollAssist.disable();
+    scrollGate.refresh();
+    // Someone in a hurry did not ask to be slowed down.
+    if (!visitor.isGuided()) scrollGate.disable();
 
     afterSwapHooks.forEach((hook) => hook());
   },
@@ -163,6 +163,7 @@ if (import.meta.env.DEV) {
     __robot: robot,
     __narrator: narrator,
     __lighting: lighting,
+    __scrollGate: scrollGate,
   });
 
   // Route inspector: Shift+D, or ?debug=path. Only meaningful on the landing page.
