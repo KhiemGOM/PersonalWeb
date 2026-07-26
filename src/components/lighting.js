@@ -75,11 +75,18 @@ const BEAM_INNER = 30;
 /**
  * Colour of the beam itself.
  *
- * Not the room tint: a torch is the robot's own light, and it stays the same wherever it
- * is standing. Tinting it per hub would make the beam look like a property of the room
- * rather than of the machine carrying it.
+ * Warm, and deliberately not white. Everything else in the scene is cool — a cyan accent,
+ * a near-white type colour, cool dots — so a white torch had nothing to distinguish it and
+ * read as a wash rather than a light with a source. Warm against that cool field also
+ * reads as a lamp being carried, which is what it is.
+ *
+ * It sits opposite the cyan floor specks on the colour wheel, so they hold their own under
+ * it instead of dissolving the way white-on-white did.
+ *
+ * Not the room tint: a torch belongs to the machine carrying it and stays the same
+ * wherever it stands. Tinting it per hub would make it a property of the room.
  */
-const BEAM_COLOR = '#dff7f0';
+const BEAM_COLOR = '#ffd79a';
 
 /**
  * How hard the beam adds light on top of what it has already uncovered.
