@@ -123,6 +123,23 @@ export function createRouter(config) {
   /** @type {string | null} */
   let activePath = null;
 
+  /**
+   * Where the visitor was on each path they have been.
+   *
+   * Leaving a page and coming back should land where they left off, not at the top —
+   * otherwise going home from a hub reads as starting the site over rather than
+   * returning to it, and on a six-section landing page that means scrolling all the way
+   * back down to where you already were.
+   *
+   * Keyed by path and kept for the session, so this covers link clicks as well as
+   * browser back. `history.scrollRestoration` is set to manual precisely because the
+   * browser's own version cannot help here: it restores before the new view has
+   * rendered, when the page is still the wrong height.
+   *
+   * @type {Map<string, number>}
+   */
+  const scrollMemory = new Map();
+
   // Guards against a slow dynamic import resolving after a newer navigation started.
   let navToken = 0;
 
@@ -198,6 +215,11 @@ export function createRouter(config) {
     clearGuard();
     if (token !== navToken) return;
 
+    // Note where they were before anything replaces it. Captured here rather than on the
+    // way out of a link click, so it covers every route away from this page — browser
+    // back, a keyboard shortcut, anything.
+    if (activePath !== null) scrollMemory.set(activePath, window.scrollY);
+
     await beforeSwap?.({ from: activePath, to: url.pathname, route });
     if (token !== navToken) return;
 
@@ -216,9 +238,36 @@ export function createRouter(config) {
       if (announcer) announcer.textContent = title;
     }
 
-    if (!opts.restoreScroll) window.scrollTo(0, 0);
+    restoreScroll(url.pathname);
 
     afterSwap?.({ to: url.pathname, route });
+  }
+
+  /**
+   * Put the visitor back where they were on this path, or at the top if they have not
+   * been here before.
+   *
+   * The new view has only just been inserted, so the document is still whatever height
+   * the old one was until layout runs — scrolling before that gets clamped to the
+   * previous page's maximum, and going home from a hub lands near the top regardless of
+   * what was remembered.
+   *
+   * Reading scrollHeight forces layout synchronously, which is enough. Deferring to the
+   * next animation frame also works and was tried first, but it makes the restore depend
+   * on the browser actually producing a frame: a throttled or backgrounded tab simply
+   * never runs the callback and the position is silently lost.
+   *
+   * @param {string} path
+   */
+  function restoreScroll(path) {
+    const remembered = scrollMemory.get(path) ?? 0;
+    if (remembered === 0) {
+      window.scrollTo(0, 0);
+      return;
+    }
+
+    const limit = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+    window.scrollTo(0, Math.min(remembered, limit));
   }
 
   /** @param {MouseEvent} event */

@@ -206,8 +206,11 @@ export function createScrollGate(options = {}) {
       sectionCount = sections.length;
       enabled = sectionCount > 1;
 
-      // Arriving deep in the page — a reload part-way down, or a deep link — should not
-      // then refuse to let you continue from where the browser already put you.
+      // Arriving deep in the page — a restored position, a reload part-way down, a deep
+      // link — should not then refuse to let you continue from where you already are.
+      //
+      // Safe to read straight away: the router restores scroll synchronously before it
+      // runs its after-swap hooks, so this already sees the final position.
       if (enabled) {
         unlocked = Math.max(unlocked, Math.floor(window.scrollY / window.innerHeight));
       }
