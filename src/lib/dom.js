@@ -27,7 +27,7 @@ export function el(tag, props, ...children) {
     if (value == null || value === false) continue;
 
     if (key === 'style' && typeof value === 'object') {
-      Object.assign(node.style, value);
+      setStyle(node, value);
     } else if (key === 'dataset' && typeof value === 'object') {
       Object.assign(node.dataset, value);
     } else if (key.includes('-')) {
@@ -42,6 +42,31 @@ export function el(tag, props, ...children) {
 
   append(node, children);
   return node;
+}
+
+/**
+ * Apply a style object.
+ *
+ * Custom properties must go through setProperty. Plain assignment (`style['--x'] = ...`,
+ * which is what Object.assign does) attaches an ordinary JS property to the
+ * CSSStyleDeclaration and never reaches CSS — silently, with no error. Since scene object
+ * placement is driven entirely by `--x` / `--y` / `--scale`, that failure mode collapses
+ * every object to zero size.
+ *
+ * @param {HTMLElement} node
+ * @param {Record<string, string | number>} styles
+ */
+export function setStyle(node, styles) {
+  for (const [property, value] of Object.entries(styles)) {
+    if (value == null) continue;
+
+    if (property.startsWith('--')) {
+      node.style.setProperty(property, String(value));
+    } else {
+      // @ts-expect-error — camelCase style keys are valid indexed access
+      node.style[property] = value;
+    }
+  }
 }
 
 /**

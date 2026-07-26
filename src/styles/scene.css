@@ -1,0 +1,271 @@
+/**
+ * Hub scenes.
+ *
+ * The hover affordance below is defined once and inherited by every object in every hub —
+ * that consistency is the point (docs/CONCEPT.md: "so the interaction pattern is learned
+ * once"). Resist adding per-hub variations.
+ */
+
+.scene {
+  position: relative;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* ---- Backdrop and light ---- */
+
+.scene__backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background: var(--bg);
+}
+
+/* Each hub fades up its own light source after a transition: a podium spotlight reads
+   differently from a library lamp. Shape comes from data-light-shape. */
+.scene__light {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.5;
+  animation: light-up var(--tempo-lightup) var(--ease-out) both;
+}
+
+.scene[data-light-shape='wash'] .scene__light {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--scene-light) 16%, transparent) 0%,
+    transparent 55%
+  );
+}
+
+.scene[data-light-shape='spot'] .scene__light {
+  background: radial-gradient(
+    62% 46% at 50% 6%,
+    color-mix(in srgb, var(--scene-light) 26%, transparent) 0%,
+    transparent 70%
+  );
+}
+
+.scene[data-light-shape='pool'] .scene__light {
+  background: radial-gradient(
+    58% 58% at 50% 52%,
+    color-mix(in srgb, var(--scene-light) 20%, transparent) 0%,
+    transparent 72%
+  );
+}
+
+@keyframes light-up {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0.5;
+  }
+}
+
+/* ---- Header ---- */
+
+.scene__header {
+  padding: var(--space-xl) var(--space-l) 0;
+  text-align: center;
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.scene__back {
+  justify-self: start;
+  font-size: var(--step--1);
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  transition: color var(--tempo-hover) var(--ease-out);
+}
+
+.scene__back:hover {
+  color: var(--accent);
+}
+
+.scene__title {
+  font-size: var(--step-1);
+  color: var(--text);
+  font-weight: 500;
+  max-width: 30ch;
+  margin-inline: auto;
+}
+
+/* ---- Stage ----
+   Aspect-locked and letterboxed, so normalized coordinates land in the same place
+   relative to the art at any viewport size. */
+
+.scene__stage {
+  position: relative;
+  width: min(100%, calc((100dvh - 14rem) * 16 / 9));
+  aspect-ratio: 16 / 9;
+  margin: var(--space-m) auto;
+  align-self: center;
+}
+
+/* ---- Objects ----
+   One affordance, every hub: scale up, brighten, glow, raise the caption. */
+
+.scene__object {
+  position: absolute;
+  left: calc(var(--x) * 100%);
+  top: calc(var(--y) * 100%);
+  width: calc(var(--scale) * 12%);
+  aspect-ratio: 1;
+
+  display: grid;
+  place-items: center;
+  translate: -50% -50%;
+
+  cursor: pointer;
+  animation: idle-bob 4s ease-in-out infinite;
+  animation-delay: var(--bob-delay);
+  transition:
+    scale var(--tempo-pop) var(--ease-pop),
+    filter var(--tempo-hover) var(--ease-out);
+}
+
+.scene__object:hover,
+.scene__object:focus-visible {
+  scale: 1.12;
+  filter: brightness(1.25) drop-shadow(0 0 18px var(--accent-glow));
+  z-index: 2;
+}
+
+.scene__object:active {
+  scale: 1.04;
+}
+
+@keyframes idle-bob {
+  0%,
+  100% {
+    translate: -50% -50%;
+  }
+  50% {
+    translate: -50% calc(-50% - 6px);
+  }
+}
+
+.scene__art {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Placeholder blob — stands in for hand-drawn art until Phase 3. */
+.scene__blob {
+  width: 100%;
+  height: 100%;
+  background: color-mix(in srgb, var(--scene-light) 22%, var(--surface));
+  border: 2px solid color-mix(in srgb, var(--scene-light) 45%, transparent);
+}
+
+.scene__object[data-flagship='true'] .scene__blob {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+}
+
+/* ---- Caption ----
+   Name always readable; blurb revealed on hover, so the scene stays uncluttered without
+   hiding what things are. */
+
+.scene__caption {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  translate: -50% var(--space-xs);
+  width: max-content;
+  max-width: 22ch;
+  display: grid;
+  gap: 2px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.scene__name {
+  font-family: var(--font-display);
+  font-size: var(--step--1);
+  color: var(--text);
+  text-shadow: 0 1px 6px var(--bg);
+}
+
+.scene__blurb {
+  font-size: var(--step--1);
+  line-height: 1.35;
+  color: var(--text-muted);
+  opacity: 0;
+  translate: 0 -4px;
+  transition:
+    opacity var(--tempo-hover) var(--ease-out),
+    translate var(--tempo-hover) var(--ease-out);
+}
+
+.scene__object:hover .scene__blurb,
+.scene__object:focus-visible .scene__blurb {
+  opacity: 1;
+  translate: 0 0;
+}
+
+.scene__empty {
+  text-align: center;
+  color: var(--text-faint);
+}
+
+/* ---- Narrow viewports ----
+   A hand-placed diorama cannot survive a 380px-wide screen: objects would overlap into an
+   unclickable pile. Below this width the same elements reflow into a plain list. The
+   content is identical; only the arrangement gives up. */
+
+@media (max-width: 44rem) {
+  .scene__stage {
+    width: 100%;
+    aspect-ratio: auto;
+    display: grid;
+    gap: var(--space-l);
+    padding: var(--space-l) var(--space-m) var(--space-2xl);
+  }
+
+  .scene__object {
+    position: static;
+    translate: none;
+    width: 100%;
+    aspect-ratio: auto;
+    grid-template-columns: 3.5rem 1fr;
+    place-items: center start;
+    gap: var(--space-m);
+    animation: none;
+  }
+
+  .scene__object:hover,
+  .scene__object:focus-visible {
+    scale: 1;
+  }
+
+  .scene__blob {
+    width: 3.5rem;
+    height: 3.5rem;
+  }
+
+  .scene__caption {
+    position: static;
+    translate: none;
+    text-align: start;
+    max-width: none;
+    /* Must reset the stage's `width: max-content`. Left as-is, captions size to their
+       longest blurb (up to ~440px) and get clipped by the body's overflow-x guard —
+       silently cutting off text on exactly the viewports that most need to read it. */
+    width: auto;
+    min-width: 0;
+  }
+
+  .scene__blurb {
+    opacity: 1;
+    translate: none;
+  }
+}

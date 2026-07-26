@@ -1,22 +1,25 @@
-import { scaffold } from './shared.js';
+import { createScene } from '../components/scene.js';
 import { getHub } from '../content/hubs.js';
+import { itemsForHub } from '../content/items.js';
+import '../styles/scene.css';
 
 /** @param {import('../core/router.js').ViewContext} ctx */
 export const title = (ctx) => `${getHub(ctx.meta.hub)?.title ?? 'Hub'} — Khiem`;
+
+/** @type {{ destroy: () => void } | null} */
+let active = null;
 
 /** @param {import('../core/router.js').ViewContext} ctx */
 export function render(ctx) {
   const hub = getHub(ctx.meta.hub);
   if (!hub) throw new Error(`route declared unknown hub: ${ctx.meta.hub}`);
 
-  return scaffold({
-    label: hub.title,
-    title: hub.kicker,
-    body: 'The scene renderer replaces this: a background with hand-placed clickable objects.',
-    debug: { hub: hub.slug, light: hub.light, shape: hub.lightShape },
-    links: [
-      { href: `/${hub.slug}/sample-item`, text: 'Open a sample item →' },
-      { href: '/', text: '← Home' },
-    ],
-  });
+  const scene = createScene({ hub, items: itemsForHub(hub.slug) });
+  active = scene;
+  return scene.element;
+}
+
+export function destroy() {
+  active?.destroy();
+  active = null;
 }
