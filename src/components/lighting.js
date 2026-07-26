@@ -38,10 +38,20 @@ const CUE = {
 const DARKNESS = 0.9;
 
 /**
- * The robot's own glow, in px. Small and personal — enough that it is never a silhouette
- * standing in its own shadow, not enough to light the room.
+ * The robot's own lamp, in px.
+ *
+ * The robot sits under the darkness like everything else, so this is the only thing
+ * keeping it legible when it is nowhere near the spotlight. Sized to cover the rig
+ * (150x143) with falloff to spare, so it reads as a machine carrying a light rather than
+ * a machine with a hole cut around it.
  */
-const SOURCE_GLOW = 96;
+const SOURCE_GLOW = 168;
+
+/**
+ * The lamp during the opening, before the room exists. Tight enough to be two lenses in
+ * the void rather than a circle of visible floor.
+ */
+const SOURCE_GLOW_INTRO = 70;
 
 /** How quickly the spotlight slides when the subject changes. Fraction per 60Hz frame. */
 const FOCUS_SMOOTHING = 0.06;
@@ -124,14 +134,24 @@ export function createLighting(config) {
 
   /**
    * @param {number} dt milliseconds
-   * @param {{ x: number, y: number }} source  The robot's camera head, in screen px
+   * @param {{ head: { x: number, y: number }, centre: { x: number, y: number } }} robot
+   *   The cone is cast from the lenses; the lamp hangs off the machine as a whole. Using
+   *   the head for both leaves the chassis below it unlit.
    * @param {{ x: number, y: number, radius: number } | null} target
    *   What the spotlight is aimed at — the copy being read, not the robot. The robot is
    *   deliberately kept away from the text by the path, so a pool centred on it lights
    *   empty margin and leaves the words dim. It carries the light; the light falls on
    *   what matters.
    */
-  function step(dt, source, target) {
+  function step(dt, robot, target) {
+    const source = robot.head;
+    const centre = robot.centre ?? robot.head;
+
+    // The lamp hangs midway between the lenses and the chassis centre. Either end alone
+    // leaves the other in the dark: on the head the wheels vanish and it reads as a
+    // floating face; on the chassis the lenses go dim, which is worse, since they are
+    // both the face and ostensibly the source of the light.
+    const lamp = { x: (source.x + centre.x) / 2, y: (source.y + centre.y) / 2 };
     elapsed += dt;
     const { darkness, ambient, eyeGlow, cone } = stage();
 
@@ -180,16 +200,22 @@ export function createLighting(config) {
       });
     }
 
-    // The robot's own glow. Small, and present from the opening onward — this is what is
-    // visible during the eyes phase, before any spotlight exists, and afterwards it stops
-    // the robot becoming a silhouette when it wanders outside the pool it is aiming.
+    // The robot's own lamp. This is the whole of what is visible during the opening, and
+    // afterwards it is what keeps the robot readable when it wanders away from the
+    // spotlight — it is under the darkness like everything else, so without this it would
+    // simply disappear into it.
+    //
+    // Widens as the room resolves: a tight circle during the opening keeps it to two
+    // lenses in the void rather than a disc of lit floor.
     if (eyeGlow > 0) {
+      // Centred on the lenses during the opening, when there is no chassis to light, and
+      // sliding down onto the machine as it resolves.
       punchRadial(ctx, {
-        x: source.x,
-        y: source.y,
-        radius: SOURCE_GLOW * eyeGlow,
+        x: lerp(source.x, lamp.x, ambient),
+        y: lerp(source.y, lamp.y, ambient),
+        radius: lerp(SOURCE_GLOW_INTRO, SOURCE_GLOW, ambient) * eyeGlow,
         intensity: eyeGlow,
-        softness: 0.3,
+        softness: 0.5,
       });
     }
 

@@ -76,9 +76,11 @@
   /* ---- Layers ---- */
   --z-scene: 1;
   --z-objects: 10;
-  /* The darkness. Above content so it dims it, below the robot so the robot stays lit. */
+  /* The robot is IN the scene, so it sits under the darkness and is lit only where light
+     actually reaches it — by its own lamp, or by the spotlight when it stands near one.
+     Above it, it would be the single object in the world exempt from its own lighting. */
+  --z-robot: 12;
   --z-light: 15;
-  --z-robot: 20;
   --z-narrator: 30;
   --z-contact: 40;
   --z-transition: 50;

@@ -532,8 +532,17 @@ export function createRobot(config) {
     /** Deterministic frame advance. Used by tests and by tooling that has no rAF. */
     step,
 
-    /** Screen position of the camera head — what the speech bubble anchors to. */
+    /** Screen position of the camera head — the speech bubble and the light cone origin. */
     headPosition: () => ({ x: headScreenX, y: headScreenY }),
+
+    /**
+     * Screen position of the rig as a whole — what the robot's own lamp centres on.
+     *
+     * Distinct from the head: the chassis hangs well below the lenses, so a lamp centred
+     * on the head leaves the wheels in the dark and the robot reads as a floating face.
+     * In head-only mode the two coincide, since there is no chassis.
+     */
+    centrePosition: () => ({ x, y }),
 
     currentStop: () => currentStop,
 

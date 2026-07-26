@@ -70,7 +70,7 @@ let lastFrame = performance.now();
 
   // The spotlight goes on whatever is being read, not on the robot. Resolved every frame
   // because it moves with the scroll, not only when the view changes.
-  lighting.step(dt, head, resolveFocus());
+  lighting.step(dt, { head, centre: robot.centrePosition() }, resolveFocus());
   // The robot is revealed BY the light rather than on a timer of its own, so the chassis
   // cannot resolve before there is anything to see it by.
   const phase = lighting.phase();

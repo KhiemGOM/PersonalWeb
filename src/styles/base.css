@@ -75,12 +75,13 @@ a {
   pointer-events: none;
 }
 
-/* The robot sits above the darkness in both modes.
-   It used to drop behind the copy on the landing page, so its path could sweep across
-   the full width without covering what you were reading. That is no longer available:
-   the light layer dims everything beneath it, so a robot behind the darkness is a robot
-   nobody can see — and it is the thing carrying the light. Clearance from the copy is
-   handled where it always really was, by the path's x values in content/journey.js. */
+/* The robot sits UNDER the darkness, like everything else in the scene, so it is lit only
+   where light reaches it. Its own lamp keeps it legible wherever it goes, and it brightens
+   further when it stands near the spotlight — which is the point: a robot exempt from its
+   own lighting reads as pasted on top of the picture rather than standing in it.
+
+   Clearance from the copy is handled where it always really was, by the path's x values
+   in content/journey.js. */
 
 #light-layer {
   position: fixed;
