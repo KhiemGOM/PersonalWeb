@@ -13,9 +13,16 @@
 /** Below this fraction visible, a block is not worth aiming at yet. */
 const MIN_VISIBILITY = 0.25;
 
-/** Bounds on the pool, so a huge block does not light the whole page and a tiny one is still generous. */
-const MIN_RADIUS = 230;
-const MAX_RADIUS_FRACTION = 0.72;
+/**
+ * Bounds on the pool, so a huge block does not light the whole page and a tiny one is
+ * still generous.
+ *
+ * The minimum was 230, which lit a heading and left the paragraph under it in the dark —
+ * the pool has to cover a block of copy and some room around it, or reading means moving
+ * your eye out of the light.
+ */
+const MIN_RADIUS = 340;
+const MAX_RADIUS_FRACTION = 0.85;
 
 /** @type {HTMLElement[]} */
 let candidates = [];
@@ -57,7 +64,7 @@ export function resolveFocus() {
   if (!best) return null;
 
   const radius = Math.min(
-    Math.max(MIN_RADIUS, (Math.hypot(best.width, best.height) / 2) * 1.3 + 70),
+    Math.max(MIN_RADIUS, (Math.hypot(best.width, best.height) / 2) * 1.45 + 120),
     Math.min(viewportW, viewportH) * MAX_RADIUS_FRACTION
   );
 

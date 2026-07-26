@@ -14,8 +14,13 @@
   --surface: #2a2a2e;
 
   /* ---- Derived ---- */
-  --text-muted: color-mix(in srgb, var(--text) 62%, var(--bg));
-  --text-faint: color-mix(in srgb, var(--text) 38%, var(--bg));
+  /* Raised for the dark overlay. These were mixed against the page background as if the
+     page were the darkest thing on screen — but the light layer sits over everything and
+     dims it further, so secondary copy that read as quiet on a plain background became
+     genuinely unreadable once the scene went dark. Faint at 38% landed near 1.4:1 against
+     its own lit backdrop, which is not text, it is a rumour of text. */
+  --text-muted: color-mix(in srgb, var(--text) 78%, var(--bg));
+  --text-faint: color-mix(in srgb, var(--text) 58%, var(--bg));
   --accent-dim: color-mix(in srgb, var(--accent) 55%, var(--bg));
   --accent-glow: color-mix(in srgb, var(--accent) 28%, transparent);
   --surface-raised: color-mix(in srgb, var(--surface) 80%, var(--text));

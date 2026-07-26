@@ -34,8 +34,15 @@ const CUE = {
   spotlight: 2700,
 };
 
-/** Resting darkness. 1 would be pitch black; a little leak keeps shapes legible. */
-const DARKNESS = 0.9;
+/**
+ * Resting darkness.
+ *
+ * Was 0.9, which left everything outside a pool effectively invisible — the page read as
+ * a black screen with two small patches on it, and the honest answer to "what am I meant
+ * to be looking at" was "nothing". The lights should pick things out of a dim room, not
+ * be the only reason anything exists.
+ */
+const DARKNESS = 0.7;
 
 /**
  * The robot's own lamp, in px.
@@ -60,14 +67,20 @@ const FOCUS_SMOOTHING = 0.06;
 const CONE_SPREAD = 0.3;
 
 /**
- * How far the beam throws, in px. FIXED — the cursor sets its direction and nothing else.
+ * How far the beam throws, as a multiple of the viewport diagonal.
  *
- * It used to reach to wherever the cursor was, which meant a pointer on the far side of
- * the page produced a beam over a thousand pixels long. Its falloff had barely started by
- * the screen edge, so it filled a third of the view as a flat slab, and it grew and shrank
- * as the mouse moved — a torch whose throw depends on what you are pointing it at.
+ * The diagonal is the furthest two points in the viewport can be apart, so at 1.0 the
+ * beam reaches the far corner from wherever the robot is standing — effectively
+ * unlimited, and it scales with the window rather than being a pixel count that is
+ * generous on a laptop and useless on a monitor.
+ *
+ * This is NOT the old distance-to-cursor behaviour. That made the length depend on where
+ * you pointed, so the beam grew and shrank as the mouse moved and its falloff never
+ * started. Here the length is fixed for a given window; the cursor still contributes
+ * direction and nothing else. The falloff is expressed as fractions of the length, so its
+ * shape is identical at any size — it simply stretches to fit.
  */
-const BEAM_LENGTH = 430;
+const BEAM_LENGTH_FACTOR = 1.05;
 
 /** Gradient start, so the beam has no hot spot sitting on the robot's own face. */
 const BEAM_INNER = 30;
@@ -75,18 +88,17 @@ const BEAM_INNER = 30;
 /**
  * Colour of the beam itself.
  *
- * Warm, and deliberately not white. Everything else in the scene is cool — a cyan accent,
- * a near-white type colour, cool dots — so a white torch had nothing to distinguish it and
- * read as a wash rather than a light with a source. Warm against that cool field also
- * reads as a lamp being carried, which is what it is.
+ * Cyan, matching the robot's own lenses — the light it casts is plainly the light it is
+ * made of. Warm was tried and read as a brown smudge on the floor: at this low an alpha a
+ * warm tint has nowhere to go against a near-black page but muddy.
  *
- * It sits opposite the cyan floor specks on the colour wheel, so they hold their own under
- * it instead of dissolving the way white-on-white did.
+ * The floor specks are warm precisely so this can be cool. Whichever way round they go,
+ * the two must not match, or the texture dissolves into the beam the way white did.
  *
  * Not the room tint: a torch belongs to the machine carrying it and stays the same
  * wherever it stands. Tinting it per hub would make it a property of the room.
  */
-const BEAM_COLOR = '#ffd79a';
+const BEAM_COLOR = '#a6f4e4';
 
 /**
  * How hard the beam adds light on top of what it has already uncovered.
@@ -98,8 +110,13 @@ const BEAM_COLOR = '#ffd79a';
  */
 const BEAM_GLOW = 0.26;
 
-/** Blur radius on the beam, in px. What keeps the wedge from reading as a polygon. */
-const BEAM_FEATHER = 46;
+/**
+ * Blur on the beam, as a fraction of its length — what keeps the wedge from reading as a
+ * polygon. Proportional rather than fixed: the cone's width grows with its length, so a
+ * constant blur would feather a short beam generously and leave a long one looking sharp
+ * again at exactly the size where the straight edges are most obvious.
+ */
+const BEAM_FEATHER_FACTOR = 0.055;
 
 /** @param {number} t 0–1 */
 const easeOut = (t) => 1 - Math.pow(1 - t, 3);
@@ -147,14 +164,18 @@ export function createLighting(config) {
    * @param {{ x: number, y: number }} source
    */
   function beamGeometry(source) {
+    // The viewport diagonal is the furthest apart two points on screen can be, so this
+    // reaches the far corner from anywhere the robot happens to be standing.
+    const length = Math.hypot(width, height) * BEAM_LENGTH_FACTOR;
+
     return {
       x: source.x,
       y: source.y,
       angle: Math.atan2(mouseY - source.y, mouseX - source.x),
-      length: BEAM_LENGTH,
+      length,
       spread: CONE_SPREAD,
       inner: BEAM_INNER,
-      feather: BEAM_FEATHER,
+      feather: length * BEAM_FEATHER_FACTOR,
     };
   }
 
