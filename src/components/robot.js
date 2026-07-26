@@ -52,12 +52,12 @@ const HEAD_SMOOTHING = 0.07;
  * one is that its period does not depend on amplitude. A long haul and a short hop take
  * comparable time, because a bigger gap pulls harder.
  *
- * Period is 2π/√k, so 9 gives roughly 2.1s for a full oscillation and a settle in about
- * two thirds of that. The exponential damping this replaced had the opposite character:
- * fastest at the instant it started moving, then an ever-slower crawl into the target, so
- * the tail of every move dragged regardless of distance.
+ * Period is 2π/√k, so this gives roughly 1.05s for a full oscillation and a settle in
+ * about two thirds of that. The exponential damping this replaced had the opposite
+ * character: fastest at the instant it started moving, then an ever-slower crawl into the
+ * target, so the tail of every move dragged regardless of distance.
  */
-const STIFFNESS = 9;
+const STIFFNESS = 36;
 
 /**
  * Velocity damping. 2√k is critical — the fastest approach that does not overshoot.
@@ -72,8 +72,11 @@ const DAMPING = 2 * Math.sqrt(STIFFNESS);
  * therefore takes just as long as a 2000px one. Correct, and dull — small adjustments
  * ooze. The floor keeps a minimum urgency so short moves finish quickly, while long ones,
  * whose spring force is far above it, are untouched.
+ *
+ * Scales with STIFFNESS, or raising the stiffness would quietly shrink the range of
+ * distances the floor still helps: it only bites below MIN_ACCELERATION / STIFFNESS px.
  */
-const MIN_ACCELERATION = 620;
+const MIN_ACCELERATION = 1400;
 
 /**
  * Slack before the robot reacts to scrolling, in viewport heights.
@@ -108,8 +111,13 @@ const ARRIVED_PX = 2;
  * robot covers more ground per unit progress than on a straight vertical run, and its
  * apparent top speed ends up a function of the slope of the line it is on. Converting
  * through the local derivative gives one speed limit that holds everywhere.
+ *
+ * Raised alongside STIFFNESS. A spring's peak speed is about 0.37 * omega * distance, so
+ * at the old 780 limit anything past ~350px hit the cap and stopped getting any faster —
+ * which is most real moves, a section being 765px. Stiffening the spring without lifting
+ * this would have changed almost nothing except the first fifth of each journey.
  */
-const MAX_SPEED_PX_PER_SECOND = 780;
+const MAX_SPEED_PX_PER_SECOND = 1250;
 
 /**
  * Furthest the robot may drift from the view, in viewport heights.
