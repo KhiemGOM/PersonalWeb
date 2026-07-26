@@ -231,11 +231,19 @@ export function createRobot(config) {
   /** @type {string | undefined} */
   let currentStop = JOURNEY[0]?.stop;
 
+  /** @type {Set<(stop: string | undefined) => void>} */
+  const stopListeners = new Set();
+
   // Derived from pathProgress each frame; seeded so the first frame has sane values.
   let x = (JOURNEY[0]?.x ?? 0.5) * width;
   let y = (JOURNEY[0]?.y ?? 0.5) * height;
   let lookX = 0;
   let lookY = 0;
+
+  // Where the camera head sits on screen. The narrator anchors its speech bubble here,
+  // so the bubble is visibly attached to whatever is doing the talking.
+  let headScreenX = x;
+  let headScreenY = y;
 
   // Infinity, not NaN: every comparison against NaN is false, so a NaN seed would make
   // the dirty-checks below never fire and the CSS variables never get written at all —
@@ -333,7 +341,10 @@ export function createRobot(config) {
     pathProgress = start + clamp(bounded - start, -driftStep, driftStep);
 
     const point = getPositionAtProgress(pathProgress, JOURNEY);
-    currentStop = point.stop;
+    if (point.stop !== currentStop) {
+      currentStop = point.stop;
+      for (const listener of stopListeners) listener(currentStop);
+    }
 
     // WORLD SPACE, not screen space.
     //
@@ -371,6 +382,8 @@ export function createRobot(config) {
     // The head looks from where the head actually is, not from the rig origin.
     const headX = x;
     const headY = y - (mode === 'head' ? 0 : 96);
+    headScreenX = headX;
+    headScreenY = headY;
 
     const goalLookX = clamp((mouseX - headX) / LOOK_RANGE, -1, 1);
     const goalLookY = clamp((mouseY - headY) / LOOK_RANGE, -1, 1);
@@ -428,8 +441,38 @@ export function createRobot(config) {
 
     getMode: () => mode,
 
+    /**
+     * Marks the robot as talking, which drives the lens animation in robot.css.
+     *
+     * It has camera optics rather than a mouth, so the iris is what moves — the lenses
+     * contract and flare with the speech. Without something animating on the robot
+     * itself, a bubble appearing nearby is only circumstantial evidence about who is
+     * speaking, which is exactly how it read before.
+     *
+     * @param {boolean} value
+     */
+    setSpeaking(value) {
+      element.dataset.speaking = value ? 'true' : 'false';
+    },
+
     /** Deterministic frame advance. Used by tests and by tooling that has no rAF. */
     step,
+
+    /** Screen position of the camera head — what the speech bubble anchors to. */
+    headPosition: () => ({ x: headScreenX, y: headScreenY }),
+
+    currentStop: () => currentStop,
+
+    /**
+     * Fires when the robot arrives at a different named stop, which is what the landing
+     * page uses to know when to have it comment on a section.
+     * @param {(stop: string | undefined) => void} listener
+     * @returns {() => void} unsubscribe
+     */
+    onStopChange(listener) {
+      stopListeners.add(listener);
+      return () => stopListeners.delete(listener);
+    },
 
     destroy() {
       cancelAnimationFrame(frame);

@@ -1,0 +1,75 @@
+/* Sound toggle — bottom-right, quiet until hovered. */
+
+.sound-toggle {
+  position: fixed;
+  right: var(--space-m);
+  bottom: var(--space-m);
+  z-index: var(--z-contact);
+
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-2xs) var(--space-s);
+
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  backdrop-filter: blur(6px);
+
+  font-family: var(--font-display);
+  font-size: var(--step--1);
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+
+  opacity: 0.55;
+  transition:
+    opacity var(--tempo-hover) var(--ease-out),
+    color var(--tempo-hover) var(--ease-out),
+    border-color var(--tempo-hover) var(--ease-out);
+}
+
+.sound-toggle:hover,
+.sound-toggle:focus-visible {
+  opacity: 1;
+  color: var(--text);
+}
+
+.sound-toggle[data-on='true'] {
+  opacity: 1;
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+/* Three bars: flat when muted, stepped when on. Cheaper to read at a glance than a
+   speaker glyph at this size. */
+.sound-toggle__icon {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 12px;
+}
+
+.sound-toggle__icon::before,
+.sound-toggle__icon::after {
+  content: '';
+  width: 2px;
+  background: currentColor;
+  border-radius: 1px;
+  height: 3px;
+  transition: height var(--tempo-pop) var(--ease-out);
+}
+
+.sound-toggle[data-on='true'] .sound-toggle__icon::before {
+  height: 11px;
+}
+
+.sound-toggle[data-on='true'] .sound-toggle__icon::after {
+  height: 7px;
+}
+
+@media (max-width: 44rem) {
+  /* Label drops on narrow screens; the icon carries it. */
+  .sound-toggle__label {
+    display: none;
+  }
+}

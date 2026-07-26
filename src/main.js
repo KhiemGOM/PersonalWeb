@@ -11,6 +11,7 @@ import './styles/base.css';
 import './styles/scaffold.css';
 import './styles/robot.css';
 import './styles/narrator.css';
+import './styles/sound-toggle.css';
 
 import { createRouter } from './core/router.js';
 import { createRobot } from './components/robot.js';
@@ -18,7 +19,17 @@ import { createNarrator } from './components/narrator.js';
 import { setShell } from './core/shell.js';
 import { routes, notFound } from './routes.js';
 import * as visitor from './core/visitor-mode.js';
+import { sound } from './core/sound.js';
+import { createSoundToggle } from './components/sound-toggle.js';
 import { must } from './lib/dom.js';
+
+sound.init();
+
+// DEBUG: treat every refresh as a first visit, so the opening narration replays and the
+// visitor-intent branch is always exercised. Flip to false to test the streak-to-default
+// behaviour, which by design needs choices to survive a reload.
+const DEBUG_ALWAYS_FIRST_VISIT = true;
+if (import.meta.env.DEV && DEBUG_ALWAYS_FIRST_VISIT) visitor.forget();
 
 // Decide the visitor's mode before anything renders. `ask` means they've earned no
 // default yet — the landing question that resolves it is Phase 2 work, so until then we
@@ -30,9 +41,14 @@ if (decision.ask) {
 
 // Created once, outside the router's outlet, so these survive every navigation.
 const robot = createRobot({ layer: must('#robot-layer') });
-const narrator = createNarrator({ root: must('#narrator-root') });
+const narrator = createNarrator({
+  root: must('#narrator-root'),
+  // The robot's optics animate whenever a line is being delivered.
+  onSpeakingChange: (speaking) => robot.setSpeaking(speaking),
+});
 
 setShell({ robot, narrator });
+createSoundToggle();
 
 // The narrator types on its own clock. The robot runs its own rAF loop for motion, but
 // driving a second one here would mean two loops competing for the same frames, so the
@@ -40,6 +56,9 @@ setShell({ robot, narrator });
 let lastFrame = performance.now();
 (function tickNarrator(now) {
   narrator.step(Math.min(now - lastFrame, 64));
+  // Keep the speech bubble on the robot's head as it moves.
+  const head = robot.headPosition();
+  narrator.setAnchor(head.x, head.y);
   lastFrame = now;
   requestAnimationFrame(tickNarrator);
 })(lastFrame);

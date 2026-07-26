@@ -20,6 +20,7 @@
 
 import { el } from '../lib/dom.js';
 import { isGuided } from '../core/visitor-mode.js';
+import { sound } from '../core/sound.js';
 
 /** Characters per second while typing. Fast enough to read along with. */
 const CHARS_PER_SECOND = 42;
@@ -34,7 +35,7 @@ const REACTION_HOLD = 2600;
  * @param {HTMLElement} config.root  #narrator-root
  */
 export function createNarrator(config) {
-  const { root } = config;
+  const { root, onSpeakingChange } = config;
 
   const line = el('p', { className: 'narrator__line' });
   // aria-hidden: the partially-typed text is an animation frame, not content. Screen
@@ -55,14 +56,25 @@ export function createNarrator(config) {
   /** @type {string | null} */
   let typing = null;
   let cursor = 0;
+  /** Characters already revealed, so blips fire once per character rather than per frame. */
+  let lastRevealed = 0;
+
+  /** @type {'performed' | 'recorded-only' | null} Which branch the last say() took. */
+  let lastSayBranch = null;
   let holdRemaining = 0;
   /** @type {'idle' | 'narrate' | 'react'} */
   let state = 'idle';
 
   /** @param {'idle' | 'narrate' | 'react'} next */
   function setState(next) {
+    const wasSpeaking = state !== 'idle';
     state = next;
     element.dataset.state = next;
+
+    // The robot animates while it is talking — without that, a bubble appearing near it
+    // is only circumstantial evidence that it is the one speaking.
+    const speaking = next !== 'idle';
+    if (speaking !== wasSpeaking) onSpeakingChange?.(speaking);
   }
 
   /** @param {string} text */
@@ -81,6 +93,7 @@ export function createNarrator(config) {
     }
     typing = next;
     cursor = 0;
+    lastRevealed = 0;
     line.textContent = '';
   }
 
@@ -90,6 +103,8 @@ export function createNarrator(config) {
 
     line.textContent = typing;
     cursor = typing.length;
+
+    sound.lineDone();
 
     if (state === 'narrate') {
       commitToTranscript(typing);
@@ -124,7 +139,13 @@ export function createNarrator(config) {
       completeCurrentLine();
       return;
     }
-    line.textContent = typing.slice(0, Math.floor(cursor));
+
+    const revealed = Math.floor(cursor);
+    if (revealed > lastRevealed) {
+      lastRevealed = revealed;
+      sound.blip();
+    }
+    line.textContent = typing.slice(0, revealed);
   }
 
   /**
@@ -133,15 +154,25 @@ export function createNarrator(config) {
    * @param {string[]} lines
    */
   function say(lines) {
-    clear();
     if (!lines?.length) return;
 
+    // Resets what is queued, but keeps the transcript. Successive narration within one
+    // page accumulates into a single readable record — the robot commenting on the third
+    // section should not erase what it said about the first. Only navigation, which calls
+    // clear(), wipes it.
+    queue = [];
+    typing = null;
+    holdRemaining = 0;
+    line.textContent = '';
+
     if (!isGuided()) {
+      lastSayBranch = 'recorded-only';
       lines.forEach(commitToTranscript);
       setState('idle');
       return;
     }
 
+    lastSayBranch = 'performed';
     setState('narrate');
     queue = [...lines];
     advance();
@@ -158,6 +189,7 @@ export function createNarrator(config) {
     queue = [];
     typing = text;
     cursor = 0;
+    lastRevealed = 0;
     holdRemaining = 0;
     line.textContent = '';
   }
@@ -204,6 +236,24 @@ export function createNarrator(config) {
     step,
     skip: completeCurrentLine,
 
+    /**
+     * Point the speech bubble at a screen position — the robot's camera head.
+     *
+     * Clamped to the viewport so a robot near an edge, or off it entirely, does not drag
+     * its own dialogue out of view with it.
+     *
+     * @param {number} screenX @param {number} screenY
+     */
+    setAnchor(screenX, screenY) {
+      const margin = 16;
+      const halfWidth = bubble.offsetWidth / 2 || 140;
+      const x = Math.max(halfWidth + margin, Math.min(window.innerWidth - halfWidth - margin, screenX));
+      const y = Math.max(bubble.offsetHeight + margin + 24, Math.min(window.innerHeight - margin, screenY));
+
+      element.style.setProperty('--anchor-x', `${x.toFixed(1)}px`);
+      element.style.setProperty('--anchor-y', `${y.toFixed(1)}px`);
+    },
+
     destroy() {
       document.removeEventListener('click', onClick);
       document.removeEventListener('keydown', onKeyDown);
@@ -212,6 +262,7 @@ export function createNarrator(config) {
 
     debug: () => ({
       state,
+      lastSayBranch,
       typing,
       visible: line.textContent,
       progress: typing ? +(cursor / typing.length).toFixed(2) : null,

@@ -84,6 +84,44 @@
 
 .robot__lens {
   fill: color-mix(in srgb, var(--accent) 70%, var(--bg));
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* ---- Speaking ----
+   No mouth to move, so the optics do the talking: the iris pulses and the lens housing
+   brightens while a line is being delivered. The two lenses are offset so they read as
+   a mechanism working rather than a single blinking light. */
+
+.robot[data-speaking='true'] .robot__lens {
+  animation: iris 320ms ease-in-out infinite alternate;
+}
+
+.robot[data-speaking='true'] .robot__lens-unit:last-of-type .robot__lens {
+  animation-delay: 90ms;
+}
+
+.robot[data-speaking='true'] .robot__shape {
+  stroke-dasharray: none;
+  filter: drop-shadow(0 0 10px var(--accent-glow));
+}
+
+@keyframes iris {
+  from {
+    scale: 0.72;
+    opacity: 0.8;
+  }
+  to {
+    scale: 1.06;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .robot[data-speaking='true'] .robot__lens {
+    animation: none;
+    scale: 1.06;
+  }
 }
 
 .robot__glint {

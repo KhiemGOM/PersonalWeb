@@ -23,6 +23,7 @@ import { itemsForHub } from './items.js';
  * @property {string} [blurb]
  * @property {string} [href]
  * @property {string} [cta]
+ * @property {string[]} [narration]  Spoken when the robot arrives here, guided mode only
  */
 
 /** @type {LandingSection[]} */
@@ -35,6 +36,12 @@ export const SECTIONS = [
     // TODO(copy): title wording still open — "Khiem's personal dimension" or an alternative.
     heading: "Khiem's personal dimension",
     blurb: 'Four rooms, one robot, and a job page that does not exist yet. Scroll.',
+    // TODO(copy): this is also where the visitor-intent question goes in Phase 2.
+    narration: [
+      'Oh — hello. Give me a second, I was not expecting anyone.',
+      'Right. I show people around this place. Four rooms, one of them a lie.',
+      'Scroll whenever you like. I will keep up. Mostly.',
+    ],
   },
 
   {
@@ -43,6 +50,7 @@ export const SECTIONS = [
     hub: 'projects',
     align: 'right',
     cta: 'Enter the lab',
+    narration: ['The lab. Everything in here started as a problem he could not put down.'],
   },
 
   {
@@ -51,6 +59,7 @@ export const SECTIONS = [
     hub: 'academics',
     align: 'left',
     cta: 'Enter the library',
+    narration: ['The library. Quieter. He reads more than he admits.'],
   },
 
   {
@@ -59,6 +68,7 @@ export const SECTIONS = [
     hub: 'competitions',
     align: 'right',
     cta: 'Step onto the podium',
+    narration: ['The podium. Mind the spotlight, it is a bit much.'],
   },
 
   {
@@ -67,6 +77,7 @@ export const SECTIONS = [
     hub: 'misc',
     align: 'left',
     cta: 'Into the pool',
+    narration: ['And the pool, where everything that fit nowhere else ended up floating.'],
   },
 
   {
@@ -78,6 +89,7 @@ export const SECTIONS = [
     blurb: 'Theoretical physics, anime, Minecraft, and a redstone CPU that is going slowly.',
     href: '/about',
     cta: 'Meet him',
+    narration: ['That is the tour. The person responsible is through here, if you want a word.'],
   },
 ];
 

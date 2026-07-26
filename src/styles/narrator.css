@@ -1,79 +1,68 @@
 /**
- * Narrator — bubble plus transcript, bottom-left, alongside the pinned robot head.
+ * Narrator — a speech bubble attached to the robot, and a transcript that stays put.
  *
- * The transcript is the durable record; the bubble is the performance. In hurry mode the
- * bubble never appears at all.
+ * Splitting the two is the point. The bubble is speech: it belongs to the robot, follows
+ * its head, and has a tail pointing at it, so there is no question who is talking. The
+ * transcript is the record: fixed bottom-left, skimmable, and outlives the performance.
  */
 
 .narrator {
   position: absolute;
-  left: clamp(var(--space-m), 4vw, var(--space-xl));
-  bottom: var(--space-m);
-  width: min(38ch, calc(100vw - 2 * var(--space-m)));
-  display: grid;
-  gap: var(--space-xs);
+  inset: 0;
   pointer-events: none;
 }
 
-/* ---- Transcript ---- */
-
-.narrator__transcript {
-  list-style: none;
-  display: grid;
-  gap: var(--space-2xs);
-  max-height: 32vh;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  pointer-events: auto;
-}
-
-.narrator__transcript:empty {
-  display: none;
-}
-
-.narrator__entry {
-  font-size: var(--step--1);
-  line-height: 1.45;
-  color: var(--text-muted);
-  padding-left: var(--space-s);
-  border-left: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
-  animation: entry-in var(--tempo-pop) var(--ease-out) both;
-}
-
-@keyframes entry-in {
-  from {
-    opacity: 0;
-    translate: 0 4px;
-  }
-}
-
-/* ---- Bubble ---- */
+/* ---- Speech bubble ----
+   Positioned at the robot's camera head, written each frame by main.js. */
 
 .narrator__bubble {
+  position: absolute;
+  left: var(--anchor-x, 50vw);
+  top: var(--anchor-y, 50vh);
+  /* Sit above the head, with room for the tail. */
+  translate: -50% calc(-100% - 22px);
+
+  width: max-content;
+  max-width: min(34ch, calc(100vw - 3rem));
   padding: var(--space-s) var(--space-m);
-  background: color-mix(in srgb, var(--surface) 88%, transparent);
-  border: 1px solid var(--hairline);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
   border-radius: var(--radius);
   backdrop-filter: blur(6px);
+
   opacity: 0;
-  translate: 0 6px;
+  scale: 0.96;
   transition:
     opacity var(--tempo-pop) var(--ease-out),
-    translate var(--tempo-pop) var(--ease-out);
+    scale var(--tempo-pop) var(--ease-pop);
+}
+
+/* The tail. Points down at the robot's head, which is what makes the attribution
+   unambiguous rather than merely implied by proximity. */
+.narrator__bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  translate: -50% 0;
+  border: 9px solid transparent;
+  border-top-color: color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
 .narrator[data-state='narrate'] .narrator__bubble,
 .narrator[data-state='react'] .narrator__bubble {
   opacity: 1;
-  translate: 0 0;
+  scale: 1;
 }
 
 /* Reactions are asides, so they read lighter than a hub introduction. */
 .narrator[data-state='react'] .narrator__bubble {
-  background: transparent;
-  border-color: transparent;
-  backdrop-filter: none;
-  padding-inline: 0;
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  border-color: var(--hairline);
+}
+
+.narrator[data-state='react'] .narrator__bubble::after {
+  border-top-color: var(--hairline);
 }
 
 .narrator__line {
@@ -107,19 +96,54 @@
   }
 }
 
+/* ---- Transcript ----
+   The durable record. Stays bottom-left through everything. */
+
+.narrator__transcript {
+  position: absolute;
+  left: clamp(var(--space-m), 4vw, var(--space-xl));
+  bottom: var(--space-m);
+  width: min(38ch, calc(100vw - 2 * var(--space-m)));
+
+  list-style: none;
+  display: grid;
+  gap: var(--space-2xs);
+  max-height: 30vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  pointer-events: auto;
+}
+
+.narrator__transcript:empty {
+  display: none;
+}
+
+.narrator__entry {
+  font-size: var(--step--1);
+  line-height: 1.45;
+  color: var(--text-muted);
+  padding-left: var(--space-s);
+  border-left: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  animation: entry-in var(--tempo-pop) var(--ease-out) both;
+}
+
+@keyframes entry-in {
+  from {
+    opacity: 0;
+    translate: 0 4px;
+  }
+}
+
 /* Hurry mode: no performance at all. The transcript still carries every line. */
 :root[data-mode='hurry'] .narrator__bubble {
   display: none;
 }
 
 @media (max-width: 44rem) {
-  .narrator {
+  .narrator__transcript {
     left: var(--space-m);
     right: var(--space-m);
     width: auto;
-  }
-
-  .narrator__transcript {
-    max-height: 24vh;
+    max-height: 22vh;
   }
 }
