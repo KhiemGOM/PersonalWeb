@@ -39,12 +39,41 @@ const MAX_TILT = 12;
 const LOOK_RANGE = 420;
 
 /**
- * Fraction of remaining distance closed per 60Hz frame. Lower = more trailing lag.
+ * Head tracking, as a fraction of the remaining angle closed per 60Hz frame.
  *
- * PATH_SMOOTHING damps progress ALONG the route, not position in space — see step().
+ * Exponential damping rather than the spring that drives travel: the camera should ease
+ * onto the cursor and stop, with no momentum and nothing to overshoot.
  */
-const PATH_SMOOTHING = 0.035;
 const HEAD_SMOOTHING = 0.07;
+
+/**
+ * Spring stiffness, in 1/s². Acceleration is proportional to how far the robot is from
+ * where it should be, which makes this a harmonic oscillator — and the useful property of
+ * one is that its period does not depend on amplitude. A long haul and a short hop take
+ * comparable time, because a bigger gap pulls harder.
+ *
+ * Period is 2π/√k, so 9 gives roughly 2.1s for a full oscillation and a settle in about
+ * two thirds of that. The exponential damping this replaced had the opposite character:
+ * fastest at the instant it started moving, then an ever-slower crawl into the target, so
+ * the tail of every move dragged regardless of distance.
+ */
+const STIFFNESS = 9;
+
+/**
+ * Velocity damping. 2√k is critical — the fastest approach that does not overshoot.
+ * A rover that bounces past its mark and comes back reads as broken rather than lively.
+ */
+const DAMPING = 2 * Math.sqrt(STIFFNESS);
+
+/**
+ * Floor on the spring's acceleration, in px/s².
+ *
+ * Pure harmonic motion is scale-free: a 20px correction gets 20px worth of pull and
+ * therefore takes just as long as a 2000px one. Correct, and dull — small adjustments
+ * ooze. The floor keeps a minimum urgency so short moves finish quickly, while long ones,
+ * whose spring force is far above it, are untouched.
+ */
+const MIN_ACCELERATION = 620;
 
 /**
  * Slack before the robot reacts to scrolling, in viewport heights.
@@ -218,9 +247,16 @@ export function createRobot(config) {
   let mouseX = width / 2;
   let mouseY = height / 2;
 
-  // How far along the route the robot has actually got. This — not the position — is
-  // what damping acts on, which is what keeps the robot on the path.
+  // How far along the route the robot has actually got. The spring acts on this — not on
+  // the position in space — which is what keeps the robot on the path.
   let pathProgress = 0;
+
+  /**
+   * Current speed along the route, in world px/s. Carried between frames because the
+   * spring integrates acceleration: without stored momentum there is nothing to
+   * accelerate, and no way for a long approach to build up pace.
+   */
+  let velocity = 0;
 
   /** 0 = following the path, 1 = parked at the pinned post. */
   let pinBlend = 0;
@@ -285,33 +321,31 @@ export function createRobot(config) {
   function step(dt) {
     const previousX = x;
 
-    // The lag lives in how far ALONG the route the robot has got, not in where it is in
-    // space. Damping the position directly (the obvious approach) lets the robot cut
-    // straight across the interior of the path toward a moving target — it drifts
-    // through whatever happens to be between two waypoints. Damping progress instead
-    // means the position is always read back off the path itself, so the robot is
-    // bounded by the route at every instant while still accelerating into it.
-    // Damping gives the ease in and out; the speed cap gives it a top gear it cannot
-    // exceed. Together: gentle scrolls are followed smoothly, fast ones outrun it.
+    // The motion lives in how far ALONG the route the robot has got, not in where it is
+    // in space. Pulling the position directly toward a target (the obvious approach) lets
+    // the robot cut across the interior of the path — it drifts through whatever happens
+    // to sit between two waypoints. Driving progress instead means the position is always
+    // read back off the path itself, so the robot is bounded by the route at every
+    // instant while still accelerating along it.
     const scrolled = scrollProgress();
     const scrollableHeight = Math.max(1, document.documentElement.scrollHeight - height);
 
-    // Convert the pixel speed limit into a progress limit for wherever the robot
-    // currently is on the curve. Scrolling contributes `scrollableHeight` of world y per
-    // unit progress on its own, on top of whatever the waypoints add.
+    // World px covered per unit of progress, at this point on the curve. Everything below
+    // is computed in pixels — real distances, so the spring and the speed limit are in
+    // units that mean something — and converted back to progress at the end.
+    //
+    // Sampled at both ends of the step, not just the start: through a sideways crossing
+    // the figure climbs steeply within a single frame, and a start-of-step reading
+    // understates it by ~17%. Taking the larger keeps things conservative — slightly slow
+    // through a bend, never fast.
     const scale = { x: width, y: height };
     const budget = (MAX_SPEED_PX_PER_SECOND * dt) / 1000;
     const direction = Math.sign(scrolled - pathProgress) || 1;
-
-    // Sampled at both ends of the step, not just the start. Through a sideways crossing
-    // the speed-per-progress climbs steeply within a single frame, so a start-of-step
-    // reading understates it and the robot overshoots the limit by ~17%. Taking the
-    // larger of the two keeps the cap conservative: slightly slow through a bend, never
-    // fast.
     const perStart = speedPerProgress(pathProgress, JOURNEY, scale, scrollableHeight);
     const tentative = pathProgress + (direction * budget) / Math.max(1, perStart);
     const perEnd = speedPerProgress(clamp(tentative), JOURNEY, scale, scrollableHeight);
-    const maxStep = budget / Math.max(1, perStart, perEnd);
+    const perProgress = Math.max(1, perStart, perEnd);
+    const maxStep = budget / perProgress;
 
     const start = pathProgress;
 
@@ -323,12 +357,39 @@ export function createRobot(config) {
     const deadzone = (DEADZONE_VIEWPORTS * height) / scrollableHeight;
 
     if (!following && gap > deadzone) following = true;
-    else if (following && gap * scrollableHeight < ARRIVED_PX) following = false;
+    else if (following && gap * scrollableHeight < ARRIVED_PX) {
+      following = false;
+      // Kill the momentum on arrival, or the stored velocity carries it straight back
+      // out of the deadzone and it starts following again — a permanent twitch.
+      velocity = 0;
+    }
 
     const goal = following ? scrolled : start;
 
-    const eased = damp(start, goal, PATH_SMOOTHING, dt);
-    const capped = start + clamp(eased - start, -maxStep, maxStep);
+    // ---- Spring ----
+    // Acceleration proportional to distance, so the pull grows with the gap and the time
+    // to cover it stays roughly constant however far it is. Damped critically so it
+    // settles rather than bouncing past.
+    const seconds = dt / 1000;
+    const displacement = (goal - start) * perProgress; // px, signed
+
+    let acceleration = STIFFNESS * displacement - DAMPING * velocity;
+
+    // Floor the spring term for short hops, which would otherwise get proportionally
+    // little pull and take as long as a long haul to complete. Only applies while there
+    // is somewhere to go; the damping term is left intact so it still settles.
+    const springForce = Math.abs(STIFFNESS * displacement);
+    if (Math.abs(displacement) > ARRIVED_PX && springForce < MIN_ACCELERATION) {
+      acceleration = MIN_ACCELERATION * Math.sign(displacement) - DAMPING * velocity;
+    }
+
+    velocity = clamp(
+      velocity + acceleration * seconds,
+      -MAX_SPEED_PX_PER_SECOND,
+      MAX_SPEED_PX_PER_SECOND
+    );
+
+    const capped = start + clamp((velocity * seconds) / perProgress, -maxStep, maxStep);
 
     // Never let it get so far from the view that it is gone for seconds at a time.
     const maxDrift = (MAX_DRIFT_VIEWPORTS * height) / scrollableHeight;
@@ -339,6 +400,12 @@ export function createRobot(config) {
     // two stack, which produced 3x the speed limit rather than the intended 2x.
     const driftStep = maxStep * DRIFT_MAX_BOOST;
     pathProgress = start + clamp(bounded - start, -driftStep, driftStep);
+
+    // Reconcile momentum with what actually happened. The speed cap and the drift bound
+    // both override the spring, and leaving `velocity` as the spring's wish means it
+    // carries a speed the robot never reached — which then discharges the moment the
+    // limit lifts, as a lurch.
+    if (seconds > 0) velocity = ((pathProgress - start) * perProgress) / seconds;
 
     const point = getPositionAtProgress(pathProgress, JOURNEY);
     if (point.stop !== currentStop) {
@@ -486,13 +553,14 @@ export function createRobot(config) {
       // Rounded fields below are for reading. Anything measuring motion must use these
       // exact ones: rounding pathProgress to 3dp quantizes world position to several
       // pixels, which at 60fps reads as hundreds of px/s of speed that is not there.
-      exact: { pathProgress, x, y, pinBlend },
-      following,
+      exact: { pathProgress, x, y, pinBlend, velocity },
       position: { x: Math.round(x), y: Math.round(y) },
       look: { x: +lookX.toFixed(3), y: +lookY.toFixed(3) },
       tilt: +(lookX * MAX_TILT).toFixed(2),
       wheelAngle: +wheelAngle.toFixed(1),
       facing,
+      velocity: Math.round(velocity),
+      following,
       scrollProgress: +scrollProgress().toFixed(3),
       // Where the robot actually is along the route, which trails the scroll position.
       pathProgress: +pathProgress.toFixed(3),
