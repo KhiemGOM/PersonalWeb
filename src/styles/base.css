@@ -75,17 +75,22 @@ a {
   pointer-events: none;
 }
 
-/* Depth follows mode.
-   Walking the landing page, the robot belongs BEHIND the copy — its path sweeps across
-   the full width and would otherwise sit on top of whatever you are reading, which is
-   unavoidable on narrow screens where the text is centred. Pinned to the edge on hub
-   pages it belongs in front, above the scene's opaque backdrop. */
-#robot-layer[data-mode='full'] {
-  z-index: 0;
+/* The robot sits above the darkness in both modes.
+   It used to drop behind the copy on the landing page, so its path could sweep across
+   the full width without covering what you were reading. That is no longer available:
+   the light layer dims everything beneath it, so a robot behind the darkness is a robot
+   nobody can see — and it is the thing carrying the light. Clearance from the copy is
+   handled where it always really was, by the path's x values in content/journey.js. */
+
+#light-layer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-light);
+  pointer-events: none;
 }
 
-#robot-layer[data-mode='head'] {
-  z-index: var(--z-robot);
+#light-layer canvas {
+  display: block;
 }
 
 #scene-root {

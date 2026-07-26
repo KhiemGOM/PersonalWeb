@@ -76,6 +76,8 @@
   /* ---- Layers ---- */
   --z-scene: 1;
   --z-objects: 10;
+  /* The darkness. Above content so it dims it, below the robot so the robot stays lit. */
+  --z-light: 15;
   --z-robot: 20;
   --z-narrator: 30;
   --z-contact: 40;

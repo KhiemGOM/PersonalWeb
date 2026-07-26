@@ -150,6 +150,61 @@
   width: 92px;
 }
 
+/* ---- Opening reveal ----
+   Before the lights come up there is nothing but two lenses in the dark. The chassis
+   resolves only once the spotlight opens, so the machine appears to be revealed BY the
+   light rather than switched on alongside it. */
+
+.robot__body,
+.robot__head {
+  transition:
+    opacity var(--tempo-lightup) var(--ease-out),
+    scale var(--tempo-flicker) var(--ease-out);
+}
+
+.robot[data-reveal='hidden'] .robot__rig {
+  opacity: 0;
+}
+
+/* Lenses only: everything structural drops away, the optics stay. */
+.robot[data-reveal='eyes'] .robot__body,
+.robot[data-reveal='eyes'] .robot__yoke,
+.robot[data-reveal='eyes'] .robot__lens-unit .robot__shape {
+  opacity: 0;
+}
+
+.robot[data-reveal='eyes'] .robot__lens {
+  filter: drop-shadow(0 0 14px var(--accent)) drop-shadow(0 0 30px var(--accent-glow));
+  animation: wake 1.1s ease-in-out infinite alternate;
+}
+
+.robot[data-reveal='eyes'] .robot__glint {
+  filter: drop-shadow(0 0 6px var(--text));
+}
+
+@keyframes wake {
+  from {
+    opacity: 0.55;
+    scale: 0.9;
+  }
+  to {
+    opacity: 1;
+    scale: 1.05;
+  }
+}
+
+.robot__body,
+.robot__yoke,
+.robot__lens-unit .robot__shape {
+  transition: opacity var(--tempo-lightup) var(--ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .robot[data-reveal='eyes'] .robot__lens {
+    animation: none;
+  }
+}
+
 /* ---- Shared placeholder shapes ---- */
 
 .robot__shape {

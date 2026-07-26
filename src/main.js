@@ -16,6 +16,7 @@ import './styles/sound-toggle.css';
 import { createRouter } from './core/router.js';
 import { createRobot } from './components/robot.js';
 import { createNarrator } from './components/narrator.js';
+import { createLighting } from './components/lighting.js';
 import { setShell } from './core/shell.js';
 import { routes, notFound } from './routes.js';
 import * as visitor from './core/visitor-mode.js';
@@ -47,6 +48,8 @@ const narrator = createNarrator({
   onSpeakingChange: (speaking) => robot.setSpeaking(speaking),
 });
 
+const lighting = createLighting({ root: must('#light-layer') });
+
 setShell({ robot, narrator });
 createSoundToggle();
 
@@ -54,13 +57,23 @@ createSoundToggle();
 // driving a second one here would mean two loops competing for the same frames, so the
 // narrator is stepped from one shared ticker.
 let lastFrame = performance.now();
-(function tickNarrator(now) {
-  narrator.step(Math.min(now - lastFrame, 64));
-  // Keep the speech bubble on the robot's head as it moves.
-  const head = robot.headPosition();
-  narrator.setAnchor(head.x, head.y);
+(function tickShell(now) {
+  const dt = Math.min(now - lastFrame, 64);
   lastFrame = now;
-  requestAnimationFrame(tickNarrator);
+
+  // Everything here hangs off where the camera head is, so it is read once.
+  const head = robot.headPosition();
+
+  narrator.step(dt);
+  narrator.setAnchor(head.x, head.y);
+
+  lighting.step(dt, head);
+  // The robot is revealed BY the light rather than on a timer of its own, so the chassis
+  // cannot resolve before there is anything to see it by.
+  const phase = lighting.phase();
+  robot.setReveal(phase === 'black' ? 'hidden' : phase === 'eyes' ? 'eyes' : 'full');
+
+  requestAnimationFrame(tickShell);
 })(lastFrame);
 
 /**
@@ -76,7 +89,18 @@ const router = createRouter({
   outlet: must('#scene-root'),
   announcer: must('#route-announcer'),
 
-  afterSwap: () => afterSwapHooks.forEach((hook) => hook()),
+  afterSwap: () => {
+    // Each room tints its own light — a library lamp is not a lab fluorescent. Read off
+    // the rendered scene rather than the route table, so a scene that changes its mind
+    // about its own lighting does not need a second registration here.
+    const scene = document.querySelector('.scene');
+    const styles = getComputedStyle(scene ?? document.documentElement);
+    lighting.setTint(
+      styles.getPropertyValue('--scene-light') || styles.getPropertyValue('--accent')
+    );
+
+    afterSwapHooks.forEach((hook) => hook());
+  },
 
   // Full body walks the scroll path on the landing page; everywhere else the head pins
   // to the left edge. Set before the swap so the robot is already moving as the new
@@ -108,6 +132,7 @@ if (import.meta.env.DEV) {
     __router: router,
     __robot: robot,
     __narrator: narrator,
+    __lighting: lighting,
   });
 
   // Route inspector: Shift+D, or ?debug=path. Only meaningful on the landing page.

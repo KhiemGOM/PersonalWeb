@@ -228,7 +228,10 @@ export function createRobot(config) {
   const head = headArt();
   const body = bodyArt();
   const rig = el('div', { className: 'robot__rig' }, body, head);
-  const element = el('div', { className: 'robot', dataset: { mode: 'full' } }, rig);
+  const element = el('div', {
+    className: 'robot',
+    dataset: { mode: 'full', reveal: 'hidden' },
+  }, rig);
 
   layer.appendChild(element);
 
@@ -507,6 +510,23 @@ export function createRobot(config) {
      */
     setSpeaking(value) {
       element.dataset.speaking = value ? 'true' : 'false';
+    },
+
+    /**
+     * How much of the robot exists yet, for the opening sequence.
+     *
+     *   'hidden' — nothing
+     *   'eyes'   — the lenses alone, floating in the dark
+     *   'full'   — the whole machine
+     *
+     * Driven by the lighting timeline rather than a timer of its own, so the chassis
+     * cannot resolve before there is any light to see it by.
+     *
+     * @param {'hidden' | 'eyes' | 'full'} value
+     */
+    setReveal(value) {
+      if (element.dataset.reveal === value) return;
+      element.dataset.reveal = value;
     },
 
     /** Deterministic frame advance. Used by tests and by tooling that has no rAF. */
