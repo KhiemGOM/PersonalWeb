@@ -19,6 +19,8 @@ import { createNarrator } from './components/narrator.js';
 import { createLighting } from './components/lighting.js';
 import { setShell } from './core/shell.js';
 import { refreshFocusTargets, resolveFocus } from './core/focus.js';
+import { createScrollAssist } from './core/scroll-assist.js';
+import { lockScroll, unlockScroll } from './core/scroll-lock.js';
 import { routes, notFound } from './routes.js';
 import * as visitor from './core/visitor-mode.js';
 import { sound } from './core/sound.js';
@@ -54,9 +56,23 @@ const lighting = createLighting({ root: must('#light-layer') });
 setShell({ robot, narrator });
 createSoundToggle();
 
+const scrollAssist = createScrollAssist();
+
+// Hold the page still through the opening. The light show is two and a half seconds and
+// plays exactly once; scrolling during it means the spotlight opens onto a section the
+// visitor has already left. Released the moment the room resolves.
+//
+// NOT held while the robot is merely talking. Narration waits for a click, so locking
+// during it would mean a page that refuses to move until the visitor works out that they
+// have to dismiss something first — the sort of thing that reads as a broken site rather
+// than a considered one.
+lockScroll('intro', 6000);
+if (!lighting.isIntroDone()) window.scrollTo(0, 0);
+
 // The narrator types on its own clock. The robot runs its own rAF loop for motion, but
 // driving a second one here would mean two loops competing for the same frames, so the
 // narrator is stepped from one shared ticker.
+let introHolding = true;
 let lastFrame = performance.now();
 (function tickShell(now) {
   const dt = Math.min(now - lastFrame, 64);
@@ -75,6 +91,11 @@ let lastFrame = performance.now();
   // cannot resolve before there is anything to see it by.
   const phase = lighting.phase();
   robot.setReveal(phase === 'black' ? 'hidden' : phase === 'eyes' ? 'eyes' : 'full');
+
+  if (phase === 'live' && introHolding) {
+    introHolding = false;
+    unlockScroll('intro');
+  }
 
   requestAnimationFrame(tickShell);
 })(lastFrame);
@@ -102,8 +123,11 @@ const router = createRouter({
       styles.getPropertyValue('--scene-light') || styles.getPropertyValue('--accent')
     );
 
-    // A new view brings new things worth lighting.
+    // A new view brings new things worth lighting, and new sections to settle onto.
     refreshFocusTargets();
+    scrollAssist.refresh();
+    // Someone in a hurry did not ask to be eased through anything.
+    if (!visitor.isGuided()) scrollAssist.disable();
 
     afterSwapHooks.forEach((hook) => hook());
   },

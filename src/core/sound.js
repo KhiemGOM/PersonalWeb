@@ -26,11 +26,17 @@ let unlocked = false;
 /** @type {Set<(on: boolean) => void>} */
 const listeners = new Set();
 
+/**
+ * On unless turned off. Browsers still refuse to make a sound before the visitor has
+ * interacted, so "on by default" means armed rather than blaring — the first click or
+ * keypress is what actually starts it.
+ */
 function readPreference() {
   try {
-    return window.localStorage.getItem(STORAGE_KEY) === 'true';
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    return stored === null ? true : stored === 'true';
   } catch {
-    return false;
+    return true;
   }
 }
 
