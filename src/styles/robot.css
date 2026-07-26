@@ -1,0 +1,101 @@
+/**
+ * Robot rig.
+ *
+ * DEBUG STYLING: dashed strokes and flat accent fills mark this as placeholder art. When
+ * hand-drawn assets land the shapes get swapped; the transform structure below stays.
+ */
+
+.robot {
+  position: fixed;
+  left: 0;
+  top: 0;
+  /* Written every frame by robot.js */
+  translate: var(--robot-x, 50vw) var(--robot-y, 50vh);
+  will-change: translate;
+}
+
+.robot__rig {
+  position: relative;
+  translate: -50% -50%;
+}
+
+/* ---- Body ---- */
+
+.robot__body {
+  width: 120px;
+  transition: opacity var(--tempo-flicker) var(--ease-out);
+}
+
+/* ---- Head ----
+   Sits above the body in 'full' mode. Its own transform layers the look-at offset and
+   tilt on top of that placement, so the head moves independently of the body. */
+
+.robot__head {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  width: 100px;
+  margin-left: -50px;
+  margin-bottom: -18px;
+  translate: var(--look-x, 0) var(--look-y, 0);
+  rotate: var(--tilt, 0deg);
+  transform-origin: 50% 85%;
+  transition:
+    translate var(--tempo-pop) linear,
+    rotate var(--tempo-pop) linear;
+}
+
+/* ---- Head-only mode ----
+   Hub and detail pages show the head alone, pinned left. The body is removed from layout
+   rather than hidden, so the head can centre on the rig origin. */
+
+.robot[data-mode='head'] .robot__body {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.robot[data-mode='head'] .robot__head {
+  position: static;
+  margin: 0;
+  width: 84px;
+}
+
+/* ---- Placeholder shapes ---- */
+
+.robot__shape {
+  fill: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-dasharray: 7 5;
+}
+
+.robot__detail {
+  fill: var(--accent);
+}
+
+.robot__eye {
+  fill: var(--text);
+}
+
+.robot__limb {
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 7 5;
+}
+
+.robot svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .robot {
+    will-change: auto;
+  }
+
+  .robot__head {
+    transition: none;
+  }
+}

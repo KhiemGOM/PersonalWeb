@@ -9,8 +9,10 @@ import '@fontsource-variable/space-grotesk';
 import '@fontsource-variable/inter';
 import './styles/base.css';
 import './styles/scaffold.css';
+import './styles/robot.css';
 
 import { createRouter } from './core/router.js';
+import { createRobot } from './components/robot.js';
 import { routes, notFound } from './routes.js';
 import * as visitor from './core/visitor-mode.js';
 import { must } from './lib/dom.js';
@@ -23,11 +25,19 @@ if (decision.ask) {
   visitor.setSessionMode(visitor.MODES.GUIDED, { persist: false });
 }
 
+// Created once, outside the router's outlet, so it survives every navigation.
+const robot = createRobot({ layer: must('#robot-layer') });
+
 const router = createRouter({
   routes,
   notFound,
   outlet: must('#scene-root'),
   announcer: must('#route-announcer'),
+
+  // Full body walks the scroll path on the landing page; everywhere else the head pins
+  // to the left edge. Set before the swap so the robot is already moving as the new
+  // scene comes up, rather than snapping into place after it lands.
+  beforeSwap: ({ to }) => robot.setMode(to === '/' ? 'full' : 'head'),
 });
 
 router.start();
@@ -48,5 +58,6 @@ if (import.meta.env.DEV) {
       }),
     },
     __router: router,
+    __robot: robot,
   });
 }
