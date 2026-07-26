@@ -76,6 +76,9 @@ export function setStyle(node, styles) {
  */
 export function append(parent, children) {
   for (const child of children.flat(Infinity)) {
+    // Note `0` is NOT skipped — it is legitimate text content. That makes
+    // `list.length && el(...)` a trap: an empty list renders a literal "0". Guard with
+    // an explicit comparison (`list.length > 0 &&`) at the call site.
     if (child == null || child === false || child === '') continue;
     parent.appendChild(child instanceof Node ? child : document.createTextNode(String(child)));
   }

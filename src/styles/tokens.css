@@ -53,6 +53,13 @@
   --radius: 10px;
   --radius-pill: 999px;
 
+  /* ---- Robot floor lane ----
+     The band along the bottom of the viewport the robot drives in. Landing sections
+     reserve it as bottom padding so copy never enters it — the only reliable way to keep
+     the robot off centred text, which has no left or right side to dodge to.
+     Must clear the full rig height: camera head, mast, and chassis. */
+  --robot-lane: clamp(11rem, 26vh, 15rem);
+
   /* ---- Motion ----
      Two speeds, deliberately far apart (docs/CONCEPT.md, "Timing & motion principles").
      Object interactions are frequent and must feel instant. Scene transitions are rare

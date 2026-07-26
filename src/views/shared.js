@@ -38,7 +38,7 @@ export function scaffold(spec) {
         ])
       ),
 
-    links.length &&
+    links.length > 0 &&
       el(
         'nav',
         { className: 'scaffold__links' },

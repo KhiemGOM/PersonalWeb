@@ -30,7 +30,7 @@ function renderSection(section) {
       el(section.kind === 'intro' ? 'h1' : 'h2', { className: 'landing__heading' }, heading),
       blurb && el('p', { className: 'landing__blurb' }, blurb),
 
-      names.length &&
+      names.length > 0 &&
         el(
           'ul',
           { className: 'landing__names' },

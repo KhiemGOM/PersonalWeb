@@ -60,4 +60,11 @@ if (import.meta.env.DEV) {
     __router: router,
     __robot: robot,
   });
+
+  // Exposed so the robot's rendered position can be checked against the authored curve —
+  // the invariant is that it never leaves the path, and that is only testable from
+  // outside the component.
+  Promise.all([import('./lib/path.js'), import('./content/journey.js')]).then(
+    ([path, journey]) => Object.assign(window, { __path: path, __journey: journey.JOURNEY })
+  );
 }

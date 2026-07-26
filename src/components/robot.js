@@ -17,7 +17,7 @@
  */
 
 import { el } from '../lib/dom.js';
-import { clamp, damp, getPositionAtProgress, scrollProgress } from '../lib/path.js';
+import { clamp, damp, getPositionAtProgress, lerp, scrollProgress } from '../lib/path.js';
 import { JOURNEY } from '../content/journey.js';
 
 /** @typedef {'full' | 'head'} RobotMode */
@@ -31,12 +31,20 @@ const MAX_TILT = 12;
 /** Cursor distance at which looking is fully deflected. */
 const LOOK_RANGE = 420;
 
-/** Fraction of remaining distance closed per 60Hz frame. Lower = more trailing lag. */
-const BODY_SMOOTHING = 0.055;
+/**
+ * Fraction of remaining distance closed per 60Hz frame. Lower = more trailing lag.
+ *
+ * PATH_SMOOTHING damps progress ALONG the route, not position in space — see step().
+ */
+const PATH_SMOOTHING = 0.055;
 const HEAD_SMOOTHING = 0.11;
+
+/** How quickly the robot leaves the path to take up its pinned post, and returns. */
+const PIN_SMOOTHING = 0.07;
 
 /** Where the head sits in 'head' mode, pinned against the left edge. */
 const PINNED_X = 78;
+const PINNED_Y_RATIO = 0.5;
 
 /** Below this delta, skip the DOM write — avoids thrashing style on sub-pixel jitter. */
 const EPSILON = 0.01;
@@ -146,9 +154,19 @@ export function createRobot(config) {
   let mouseX = width / 2;
   let mouseY = height / 2;
 
-  // Current (damped) values; targets are recomputed each frame.
-  let x = width / 2;
-  let y = height * 0.58;
+  // How far along the route the robot has actually got. This — not the position — is
+  // what damping acts on, which is what keeps the robot on the path.
+  let pathProgress = 0;
+
+  /** 0 = following the path, 1 = parked at the pinned post. */
+  let pinBlend = 0;
+
+  /** @type {string | undefined} */
+  let currentStop = JOURNEY[0]?.stop;
+
+  // Derived from pathProgress each frame; seeded so the first frame has sane values.
+  let x = (JOURNEY[0]?.x ?? 0.5) * width;
+  let y = (JOURNEY[0]?.y ?? 0.5) * height;
   let lookX = 0;
   let lookY = 0;
 
@@ -180,15 +198,6 @@ export function createRobot(config) {
     mouseY = event.clientY;
   }
 
-  /** Where the rig wants to be, in viewport pixels. */
-  function target() {
-    if (mode === 'head') {
-      return { x: PINNED_X, y: height * 0.5 };
-    }
-    const point = getPositionAtProgress(scrollProgress(), JOURNEY);
-    return { x: point.x * width, y: point.y * height };
-  }
-
   /**
    * Advance one frame.
    *
@@ -199,11 +208,24 @@ export function createRobot(config) {
    * @param {number} dt Milliseconds since the previous step
    */
   function step(dt) {
-    const goal = target();
-
     const previousX = x;
-    x = damp(x, goal.x, BODY_SMOOTHING, dt);
-    y = damp(y, goal.y, BODY_SMOOTHING, dt);
+
+    // The lag lives in how far ALONG the route the robot has got, not in where it is in
+    // space. Damping the position directly (the obvious approach) lets the robot cut
+    // straight across the interior of the path toward a moving target — it drifts
+    // through whatever happens to be between two waypoints. Damping progress instead
+    // means the position is always read back off the path itself, so the robot is
+    // bounded by the route at every instant while still accelerating into it.
+    pathProgress = damp(pathProgress, scrollProgress(), PATH_SMOOTHING, dt);
+    const point = getPositionAtProgress(pathProgress, JOURNEY);
+    currentStop = point.stop;
+
+    // Leaving the path for the pinned post is the one sanctioned excursion, and it is
+    // blended rather than snapped so the robot drives off rather than teleporting.
+    pinBlend = damp(pinBlend, mode === 'head' ? 1 : 0, PIN_SMOOTHING, dt);
+
+    x = lerp(point.x * width, PINNED_X, pinBlend);
+    y = lerp(point.y * height, height * PINNED_Y_RATIO, pinBlend);
 
     // Drivetrain: wheels roll the distance actually covered, chassis turns to face it.
     const travelled = x - previousX;
@@ -290,7 +312,10 @@ export function createRobot(config) {
       wheelAngle: +wheelAngle.toFixed(1),
       facing,
       scrollProgress: +scrollProgress().toFixed(3),
-      stop: getPositionAtProgress(scrollProgress(), JOURNEY).stop,
+      // Where the robot actually is along the route, which trails the scroll position.
+      pathProgress: +pathProgress.toFixed(3),
+      pinBlend: +pinBlend.toFixed(3),
+      stop: currentStop,
     }),
   };
 }
