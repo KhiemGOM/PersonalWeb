@@ -17,7 +17,14 @@
  */
 
 import { el } from '../lib/dom.js';
-import { clamp, damp, getPositionAtProgress, lerp, scrollProgress } from '../lib/path.js';
+import {
+  clamp,
+  damp,
+  getPositionAtProgress,
+  lerp,
+  scrollProgress,
+  speedPerProgress,
+} from '../lib/path.js';
 import { JOURNEY } from '../content/journey.js';
 
 /** @typedef {'full' | 'head'} RobotMode */
@@ -40,17 +47,19 @@ const PATH_SMOOTHING = 0.02;
 const HEAD_SMOOTHING = 0.07;
 
 /**
- * Top speed, in path-progress per second.
+ * Top speed, in world pixels per second.
  *
  * Damping alone can never be outrun: it always closes the same FRACTION of the remaining
  * gap per frame, so a huge scroll jump just produces a huge initial velocity and the
- * robot keeps pace with anything. A real vehicle has a maximum speed instead — so this
- * caps how fast progress can change, and scrolling faster than the robot can drive
- * genuinely leaves it behind, to catch up in its own time.
+ * robot keeps pace with anything. A real vehicle has a maximum speed instead.
  *
- * 0.2 means a full traverse of the route takes ~5s flat out.
+ * Measured in PIXELS, not progress. Progress is only a parameter along the curve, so
+ * capping it caps the wrong thing — on a stretch where the path also swings sideways the
+ * robot covers more ground per unit progress than on a straight vertical run, and its
+ * apparent top speed ends up a function of the slope of the line it is on. Converting
+ * through the local derivative gives one speed limit that holds everywhere.
  */
-const MAX_PROGRESS_PER_SECOND = 0.2;
+const MAX_SPEED_PX_PER_SECOND = 780;
 
 /**
  * Furthest the robot may fall behind, in viewport heights.
@@ -245,12 +254,29 @@ export function createRobot(config) {
     // Damping gives the ease in and out; the speed cap gives it a top gear it cannot
     // exceed. Together: gentle scrolls are followed smoothly, fast ones outrun it.
     const scrolled = scrollProgress();
+    const scrollableHeight = Math.max(1, document.documentElement.scrollHeight - height);
+
+    // Convert the pixel speed limit into a progress limit for wherever the robot
+    // currently is on the curve. Scrolling contributes `scrollableHeight` of world y per
+    // unit progress on its own, on top of whatever the waypoints add.
+    const scale = { x: width, y: height };
+    const budget = (MAX_SPEED_PX_PER_SECOND * dt) / 1000;
+    const direction = Math.sign(scrolled - pathProgress) || 1;
+
+    // Sampled at both ends of the step, not just the start. Through a sideways crossing
+    // the speed-per-progress climbs steeply within a single frame, so a start-of-step
+    // reading understates it and the robot overshoots the limit by ~17%. Taking the
+    // larger of the two keeps the cap conservative: slightly slow through a bend, never
+    // fast.
+    const perStart = speedPerProgress(pathProgress, JOURNEY, scale, scrollableHeight);
+    const tentative = pathProgress + (direction * budget) / Math.max(1, perStart);
+    const perEnd = speedPerProgress(clamp(tentative), JOURNEY, scale, scrollableHeight);
+    const maxStep = budget / Math.max(1, perStart, perEnd);
+
     const eased = damp(pathProgress, scrolled, PATH_SMOOTHING, dt);
-    const maxStep = MAX_PROGRESS_PER_SECOND * (dt / 1000);
     pathProgress += clamp(eased - pathProgress, -maxStep, maxStep);
 
     // Leash, applied after the speed cap so it only ever bites off-screen.
-    const scrollableHeight = Math.max(1, document.documentElement.scrollHeight - height);
     const maxLag = (MAX_LAG_VIEWPORTS * height) / scrollableHeight;
     pathProgress = clamp(pathProgress, scrolled - maxLag, scrolled + maxLag);
 
@@ -362,6 +388,10 @@ export function createRobot(config) {
 
     debug: () => ({
       mode,
+      // Rounded fields below are for reading. Anything measuring motion must use these
+      // exact ones: rounding pathProgress to 3dp quantizes world position to several
+      // pixels, which at 60fps reads as hundreds of px/s of speed that is not there.
+      exact: { pathProgress, x, y, pinBlend },
       position: { x: Math.round(x), y: Math.round(y) },
       look: { x: +lookX.toFixed(3), y: +lookY.toFixed(3) },
       tilt: +(lookX * MAX_TILT).toFixed(2),
