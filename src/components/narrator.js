@@ -65,7 +65,11 @@ export function createNarrator(config) {
     'aria-label': 'Robot transcript',
   });
 
-  const element = el('div', { className: 'narrator', dataset: { state: 'idle', awaiting: 'false' } }, bubble);
+  const element = el(
+    'div',
+    { className: 'narrator', dataset: { state: 'idle', awaiting: 'false', exiting: 'false' } },
+    bubble
+  );
   // Parked, not removed — see TRANSCRIPT_ENABLED.
   if (TRANSCRIPT_ENABLED) element.prepend(transcript);
   root.appendChild(element);
@@ -89,12 +93,22 @@ export function createNarrator(config) {
   /** @param {'idle' | 'narrate' | 'react'} next */
   function setState(next) {
     const wasSpeaking = state !== 'idle';
+    const speaking = next !== 'idle';
+
     state = next;
     element.dataset.state = next;
 
+    // Finishing a line sends the bubble off the top of the screen rather than dissolving
+    // it where it stands — a fade in place reads as the dialogue being switched off,
+    // where leaving reads as the robot having finished with it.
+    //
+    // No timer: the flag simply stays until the next line begins, and the exit animation
+    // holds its final frame. One less thing to keep in sync.
+    if (wasSpeaking && !speaking) element.dataset.exiting = 'true';
+    else if (speaking) element.dataset.exiting = 'false';
+
     // The robot animates while it is talking — without that, a bubble appearing near it
     // is only circumstantial evidence that it is the one speaking.
-    const speaking = next !== 'idle';
     if (speaking !== wasSpeaking) onSpeakingChange?.(speaking);
   }
 

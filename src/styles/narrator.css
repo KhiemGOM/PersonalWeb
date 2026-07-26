@@ -38,6 +38,43 @@
     scale var(--tempo-pop) var(--ease-pop);
 }
 
+/* ---- Exit ----
+   The bubble leaves the screen instead of dissolving where it stands.
+
+   Travel is derived from the anchor rather than being a fixed distance, so the bubble
+   lands just past the top edge from wherever it started. In practice the robot rides at
+   mid-height in both modes, so the anchor rarely moves and the travel is usually the
+   same ~450px; the arithmetic matters only when the robot is lagging or the layout
+   changes, where a fixed lift would either strand it mid-screen or overshoot wildly.
+
+   Entry deliberately does NOT retrace this path — flying in from off-screen every time a
+   line begins would be a long, slow arrival before every sentence. It pops in at the
+   head and leaves properly. */
+
+.narrator[data-exiting='true'] .narrator__bubble {
+  animation: bubble-away var(--tempo-flicker) var(--ease-out) forwards;
+}
+
+@keyframes bubble-away {
+  from {
+    opacity: 1;
+    scale: 1;
+    translate: -50% calc(-100% - 22px);
+  }
+  to {
+    opacity: 0;
+    scale: 0.9;
+    /* Past the top edge: the anchor distance, plus the bubble's own height, plus slack. */
+    translate: -50% calc(-100% - 22px - var(--anchor-y, 50vh) - 4rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .narrator[data-exiting='true'] .narrator__bubble {
+    animation: none;
+  }
+}
+
 /* The tail. Points down at the robot's head, which is what makes the attribution
    unambiguous rather than merely implied by proximity. */
 .narrator__bubble::after {
