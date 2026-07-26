@@ -17,7 +17,7 @@
  */
 
 import { el } from '../lib/dom.js';
-import { applyTint, fitCanvas, punchCone, punchRadial } from '../lib/lighting.js';
+import { applyTint, fitCanvas, glowCone, punchCone, punchRadial } from '../lib/lighting.js';
 import { damp, lerp } from '../lib/path.js';
 
 /**
@@ -57,7 +57,19 @@ const SOURCE_GLOW_INTRO = 70;
 const FOCUS_SMOOTHING = 0.06;
 
 /** Half-angle of the eye cone, radians. */
-const CONE_SPREAD = 0.3;
+const CONE_SPREAD = 0.32;
+
+/**
+ * Colour of the beam itself.
+ *
+ * Not the room tint: a torch is the robot's own light, and it stays the same wherever it
+ * is standing. Tinting it per hub would make the beam look like a property of the room
+ * rather than of the machine carrying it.
+ */
+const BEAM_COLOR = '#dff7f0';
+
+/** How hard the beam adds light on top of what it has already uncovered. */
+const BEAM_GLOW = 0.55;
 
 /** @param {number} t 0–1 */
 const easeOut = (t) => 1 - Math.pow(1 - t, 3);
@@ -196,7 +208,7 @@ export function createLighting(config) {
         targetX: mouseX,
         targetY: mouseY,
         spread: CONE_SPREAD,
-        intensity: cone * 0.85,
+        intensity: cone,
       });
     }
 
@@ -220,6 +232,23 @@ export function createLighting(config) {
     }
 
     ctx.restore();
+
+    // The beam, added on top of what it uncovered. Subtracting darkness can only reach
+    // "not dark" — the page underneath is the ceiling, so on its own the torch reads as a
+    // slightly-less-dim patch. This puts light onto the scene, which is what makes it
+    // look like a beam rather than a hole.
+    if (cone > 0) {
+      glowCone(ctx, {
+        x: source.x,
+        y: source.y,
+        targetX: mouseX,
+        targetY: mouseY,
+        spread: CONE_SPREAD,
+        color: BEAM_COLOR,
+        alpha: BEAM_GLOW,
+        intensity: cone,
+      });
+    }
 
     // Colour wash over the lit area, so each room reads warm or cool.
     if (ambient > 0) {

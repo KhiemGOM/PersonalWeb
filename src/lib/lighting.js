@@ -78,8 +78,65 @@ export function punchRadial(ctx, light) {
  * @param {number} [beam.intensity=1]
  */
 export function punchCone(ctx, beam) {
-  const { x, y, targetX, targetY, spread = 0.28, overshoot = 80, intensity = 1 } = beam;
+  const { intensity = 1 } = beam;
   if (intensity <= 0) return;
+
+  withConePath(ctx, beam, (length) => {
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, length);
+    // Clears the darkness outright near the lens rather than merely thinning it — a
+    // flashlight whose brightest point is still half-dark does not read as a beam.
+    g.addColorStop(0, `rgba(255,255,255,${1 * intensity})`);
+    g.addColorStop(0.4, `rgba(255,255,255,${0.82 * intensity})`);
+    g.addColorStop(0.78, `rgba(255,255,255,${0.34 * intensity})`);
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.fill();
+  });
+}
+
+/**
+ * Add light in the shape of the beam, rather than subtracting darkness.
+ *
+ * Punching alone can only ever reach "not dark" — the page underneath is the ceiling. A
+ * beam you are meant to notice has to put light ON the scene, so this draws the same cone
+ * again in `lighter`, which is what turns a clearing into something that visibly glows.
+ *
+ * Draw AFTER the mask; it is a source-over-family operation and would be erased by any
+ * subsequent destination-out.
+ *
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {Object} beam  Same geometry as punchCone
+ * @param {string} beam.color
+ * @param {number} [beam.alpha]
+ */
+export function glowCone(ctx, beam) {
+  const { color, alpha = 0.3, intensity = 1 } = beam;
+  if (intensity <= 0 || alpha <= 0) return;
+
+  withConePath(ctx, beam, (length) => {
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = alpha * intensity;
+
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, length);
+    g.addColorStop(0, color);
+    g.addColorStop(0.55, color);
+    g.addColorStop(1, 'transparent');
+    ctx.fillStyle = g;
+    ctx.fill();
+  });
+}
+
+/**
+ * Set up the cone's transform and path, run `draw`, and clean up. Shared so the punch and
+ * the glow cannot drift apart — they have to describe the same beam or the lit area and
+ * the glowing area stop lining up.
+ *
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {any} beam
+ * @param {(length: number) => void} draw
+ */
+function withConePath(ctx, beam, draw) {
+  const { x, y, targetX, targetY, spread = 0.28, overshoot = 80 } = beam;
 
   const angle = Math.atan2(targetY - y, targetX - x);
   const length = Math.hypot(targetX - x, targetY - y) + overshoot;
@@ -87,18 +144,11 @@ export function punchCone(ctx, beam) {
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle);
-
-  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, length);
-  g.addColorStop(0, `rgba(255,255,255,${0.7 * intensity})`);
-  g.addColorStop(0.6, `rgba(255,255,255,${0.3 * intensity})`);
-  g.addColorStop(1, 'rgba(255,255,255,0)');
-
   ctx.beginPath();
   ctx.moveTo(0, 0);
   ctx.arc(0, 0, length, -spread, spread);
   ctx.closePath();
-  ctx.fillStyle = g;
-  ctx.fill();
+  draw(length);
   ctx.restore();
 }
 
