@@ -84,6 +84,14 @@ export function createNarrator(config) {
 
   /** @type {'performed' | 'recorded-only' | null} Which branch the last say() took. */
   let lastSayBranch = null;
+
+  /**
+   * Fired once when the current run of lines is finished with — whether they were typed
+   * out, skipped past, or never performed at all because the visitor is in a hurry.
+   * Callers use it to hold something open for exactly as long as the robot is talking.
+   * @type {(() => void) | null}
+   */
+  let onDone = null;
   let holdRemaining = 0;
   /** True when a line is fully typed and waiting for the visitor to continue. */
   let awaiting = false;
@@ -118,6 +126,13 @@ export function createNarrator(config) {
     transcript.appendChild(el('li', { className: 'narrator__entry' }, text));
   }
 
+  /** Run the completion callback exactly once, and never twice for one run of lines. */
+  function finish() {
+    const done = onDone;
+    onDone = null;
+    done?.();
+  }
+
   /** Begin typing the next queued line, or fall idle. */
   function advance() {
     const next = queue.shift();
@@ -125,6 +140,7 @@ export function createNarrator(config) {
       typing = null;
       line.textContent = '';
       setState('idle');
+      finish();
       return;
     }
     typing = next;
@@ -220,8 +236,15 @@ export function createNarrator(config) {
    * recorded, just not performed.
    * @param {string[]} lines
    */
-  function say(lines) {
-    if (!lines?.length) return;
+  function say(lines, opts = {}) {
+    if (!lines?.length) {
+      opts.onComplete?.();
+      return;
+    }
+
+    // A run already in flight is being abandoned; let whoever was waiting on it go.
+    finish();
+    onDone = opts.onComplete ?? null;
 
     // Resets what is queued, but keeps the transcript. Successive narration within one
     // page accumulates into a single readable record — the robot commenting on the third
@@ -237,6 +260,9 @@ export function createNarrator(config) {
       lastSayBranch = 'recorded-only';
       lines.forEach(commitToTranscript);
       setState('idle');
+      // Nothing is being performed, so anything waiting on the robot to finish talking is
+      // already free. Hurry mode must never leave a hold standing.
+      finish();
       return;
     }
 
@@ -273,6 +299,9 @@ export function createNarrator(config) {
     line.textContent = '';
     transcript.replaceChildren();
     setState('idle');
+    // Navigation wipes the narrator mid-sentence; nothing held open on its behalf should
+    // survive that.
+    finish();
   }
 
   /** @param {MouseEvent} event */
@@ -308,6 +337,7 @@ export function createNarrator(config) {
     setAwaiting(false);
     line.textContent = '';
     setState('idle');
+    finish();
   }
 
   document.addEventListener('click', onClick);

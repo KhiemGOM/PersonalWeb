@@ -26,8 +26,14 @@
  * the edge, yes or no".
  */
 
-/** How long the visitor must be still at the frontier before it moves on. */
-const DWELL_MS = 3000;
+/**
+ * How long the visitor must be still at the frontier before it moves on.
+ *
+ * Long enough to break a continuous flick, short enough not to feel like a punishment.
+ * Three seconds was the first attempt and it was far too long — five sections of it is
+ * fifteen seconds of a first visit spent being refused.
+ */
+const DWELL_MS = 800;
 
 /** Slack, in px, for counting as "at the edge". */
 const EDGE_EPSILON = 3;

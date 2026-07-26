@@ -9,12 +9,26 @@
 import { el } from '../lib/dom.js';
 import { SECTIONS, resolveSection } from '../content/landing.js';
 import { getNarrator, getRobot } from '../core/shell.js';
+import { lockScroll, unlockScroll } from '../core/scroll-lock.js';
 import '../styles/landing.css';
 
 export const title = "Khiem's personal dimension";
 
 /** @type {(() => void) | null} */
 let unsubscribe = null;
+
+/**
+ * Sections the robot has already remarked on, for this page session.
+ *
+ * Module-level, so it outlives the view. Without it the opening plays again every time
+ * the visitor comes back to the landing page, and every remark replays each time they
+ * scroll back up past its section — an introduction that keeps introducing itself.
+ *
+ * @type {Set<string>}
+ */
+const spoken = new Set();
+
+const INTRO_HOLD = 'intro-dialogue';
 
 /** @param {import('../content/landing.js').LandingSection} section */
 function renderSection(section) {
@@ -57,13 +71,23 @@ export function render() {
   unsubscribe?.();
   unsubscribe =
     robot?.onStopChange((stop) => {
+      if (!stop || spoken.has(stop)) return;
       const section = SECTIONS.find((s) => s.id === stop);
-      if (section?.narration) narrator?.say(section.narration);
+      if (!section?.narration) return;
+      spoken.add(stop);
+      narrator?.say(section.narration);
     }) ?? null;
 
-  // Say the opening line straight away; nothing has arrived anywhere yet.
+  // The opening, once. Scrolling is held until the robot has finished saying it — the
+  // page should not slide out from under an introduction that is still being delivered.
+  // Released on completion, which in hurry mode is immediately, since nothing is
+  // performed at all.
   const intro = SECTIONS.find((s) => s.id === 'intro');
-  if (intro?.narration) narrator?.say(intro.narration);
+  if (intro?.narration && !spoken.has(intro.id)) {
+    spoken.add(intro.id);
+    lockScroll(INTRO_HOLD, { direction: 'forward', maxMs: 60000 });
+    narrator?.say(intro.narration, { onComplete: () => unlockScroll(INTRO_HOLD) });
+  }
 
   return el(
     'div',
@@ -83,4 +107,6 @@ export function render() {
 export function destroy() {
   unsubscribe?.();
   unsubscribe = null;
+  // Leaving mid-introduction must not carry the hold to the next page.
+  unlockScroll(INTRO_HOLD);
 }
