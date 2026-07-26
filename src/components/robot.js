@@ -52,6 +52,19 @@ const HEAD_SMOOTHING = 0.07;
  */
 const MAX_PROGRESS_PER_SECOND = 0.2;
 
+/**
+ * Furthest the robot may fall behind, in viewport heights.
+ *
+ * At top speed a slam to the bottom of the page leaves it roughly 4.5 viewports back and
+ * off-screen for about four seconds, which stops reading as "left behind" and starts
+ * reading as "gone". This caps the gap.
+ *
+ * It does mean that when the robot is very far back it closes the distance faster than
+ * its own top speed — but that only ever happens while it is off-screen, so the cheat is
+ * unobservable. Everything visible still obeys the speed limit.
+ */
+const MAX_LAG_VIEWPORTS = 1.5;
+
 /** How quickly the robot leaves the path to take up its pinned post, and returns. */
 const PIN_SMOOTHING = 0.05;
 
@@ -231,19 +244,44 @@ export function createRobot(config) {
     // bounded by the route at every instant while still accelerating into it.
     // Damping gives the ease in and out; the speed cap gives it a top gear it cannot
     // exceed. Together: gentle scrolls are followed smoothly, fast ones outrun it.
-    const eased = damp(pathProgress, scrollProgress(), PATH_SMOOTHING, dt);
+    const scrolled = scrollProgress();
+    const eased = damp(pathProgress, scrolled, PATH_SMOOTHING, dt);
     const maxStep = MAX_PROGRESS_PER_SECOND * (dt / 1000);
     pathProgress += clamp(eased - pathProgress, -maxStep, maxStep);
 
+    // Leash, applied after the speed cap so it only ever bites off-screen.
+    const scrollableHeight = Math.max(1, document.documentElement.scrollHeight - height);
+    const maxLag = (MAX_LAG_VIEWPORTS * height) / scrollableHeight;
+    pathProgress = clamp(pathProgress, scrolled - maxLag, scrolled + maxLag);
+
     const point = getPositionAtProgress(pathProgress, JOURNEY);
     currentStop = point.stop;
+
+    // WORLD SPACE, not screen space.
+    //
+    // The robot occupies a position in the DOCUMENT, and its on-screen position is that
+    // world position minus the current scroll. When it is keeping up, worldY - scrollY
+    // reduces to point.y * height and it sits in its floor lane exactly as before.
+    //
+    // When it falls behind, the difference is real: the page has moved on without it, so
+    // it drifts up and off the top of the viewport — genuinely left behind, rather than
+    // sliding around inside a viewport it can never exit. Anchoring y to the viewport
+    // instead (the previous behaviour) made the robot impossible to outrun no matter how
+    // fast you scrolled.
+    //
+    // x needs no such treatment: the document does not scroll horizontally, so world and
+    // screen x are the same thing.
+    const maxScroll = Math.max(0, document.documentElement.scrollHeight - height);
+    const worldY = pathProgress * maxScroll + point.y * height;
+    const pathScreenY = worldY - window.scrollY;
 
     // Leaving the path for the pinned post is the one sanctioned excursion, and it is
     // blended rather than snapped so the robot drives off rather than teleporting.
     pinBlend = damp(pinBlend, mode === 'head' ? 1 : 0, PIN_SMOOTHING, dt);
 
+    // The pinned post is screen space by definition — it stays put while pages scroll.
     x = lerp(point.x * width, PINNED_X, pinBlend);
-    y = lerp(point.y * height, height * PINNED_Y_RATIO, pinBlend);
+    y = lerp(pathScreenY, height * PINNED_Y_RATIO, pinBlend);
 
     // Drivetrain: wheels roll the distance actually covered, chassis turns to face it.
     const travelled = x - previousX;
@@ -334,6 +372,13 @@ export function createRobot(config) {
       pathProgress: +pathProgress.toFixed(3),
       pinBlend: +pinBlend.toFixed(3),
       stop: currentStop,
+      // Negative = scrolled off the top, i.e. the visitor has left it behind.
+      onScreen: y > -160 && y < height + 160,
+      lagInViewports: +(
+        ((scrollProgress() - pathProgress) *
+          Math.max(0, document.documentElement.scrollHeight - height)) /
+        height
+      ).toFixed(2),
     }),
   };
 }
