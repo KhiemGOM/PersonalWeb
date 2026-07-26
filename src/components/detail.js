@@ -25,7 +25,7 @@ export function createDetail(item, hub) {
 
   return el(
     'article',
-    { className: 'detail', dataset: { hub: item.hub } },
+    { className: 'detail', 'data-lit': '', dataset: { hub: item.hub } },
 
     el(
       'a',

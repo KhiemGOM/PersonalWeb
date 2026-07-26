@@ -23,7 +23,7 @@ export function scaffold(spec) {
 
   return el(
     'section',
-    { className: 'scaffold' },
+    { className: 'scaffold', 'data-lit': '' },
     el('p', { className: 'label' }, label),
     el('h1', { className: 'scaffold__title' }, title),
     body && el('p', { className: 'scaffold__body' }, body),

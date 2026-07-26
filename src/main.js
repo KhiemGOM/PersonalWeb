@@ -18,6 +18,7 @@ import { createRobot } from './components/robot.js';
 import { createNarrator } from './components/narrator.js';
 import { createLighting } from './components/lighting.js';
 import { setShell } from './core/shell.js';
+import { refreshFocusTargets, resolveFocus } from './core/focus.js';
 import { routes, notFound } from './routes.js';
 import * as visitor from './core/visitor-mode.js';
 import { sound } from './core/sound.js';
@@ -67,7 +68,9 @@ let lastFrame = performance.now();
   narrator.step(dt);
   narrator.setAnchor(head.x, head.y);
 
-  lighting.step(dt, head);
+  // The spotlight goes on whatever is being read, not on the robot. Resolved every frame
+  // because it moves with the scroll, not only when the view changes.
+  lighting.step(dt, head, resolveFocus());
   // The robot is revealed BY the light rather than on a timer of its own, so the chassis
   // cannot resolve before there is anything to see it by.
   const phase = lighting.phase();
@@ -98,6 +101,9 @@ const router = createRouter({
     lighting.setTint(
       styles.getPropertyValue('--scene-light') || styles.getPropertyValue('--accent')
     );
+
+    // A new view brings new things worth lighting.
+    refreshFocusTargets();
 
     afterSwapHooks.forEach((hook) => hook());
   },

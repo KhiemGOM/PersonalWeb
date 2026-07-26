@@ -29,7 +29,7 @@ function renderSection(section) {
     },
     el(
       'div',
-      { className: 'landing__text' },
+      { className: 'landing__text', 'data-lit': '' },
       label && el('p', { className: 'label' }, label),
       el(section.kind === 'intro' ? 'h1' : 'h2', { className: 'landing__heading' }, heading),
       blurb && el('p', { className: 'landing__blurb' }, blurb),

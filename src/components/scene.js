@@ -104,7 +104,7 @@ export function createScene(config) {
 
   const stage = el(
     'div',
-    { className: 'scene__stage', role: 'list' },
+    { className: 'scene__stage', role: 'list', 'data-lit': '' },
     items.map((item) => {
       const object = sceneObject(item);
       object.setAttribute('role', 'listitem');

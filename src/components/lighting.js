@@ -18,7 +18,7 @@
 
 import { el } from '../lib/dom.js';
 import { applyTint, fitCanvas, punchCone, punchRadial } from '../lib/lighting.js';
-import { clamp, lerp } from '../lib/path.js';
+import { damp, lerp } from '../lib/path.js';
 
 /**
  * Opening sequence, in milliseconds from load. Each entry is the moment that phase ends.
@@ -37,8 +37,14 @@ const CUE = {
 /** Resting darkness. 1 would be pitch black; a little leak keeps shapes legible. */
 const DARKNESS = 0.9;
 
-/** Ambient pool radius as a fraction of the smaller viewport dimension. */
-const AMBIENT_RADIUS = 0.52;
+/**
+ * The robot's own glow, in px. Small and personal — enough that it is never a silhouette
+ * standing in its own shadow, not enough to light the room.
+ */
+const SOURCE_GLOW = 96;
+
+/** How quickly the spotlight slides when the subject changes. Fraction per 60Hz frame. */
+const FOCUS_SMOOTHING = 0.06;
 
 /** Half-angle of the eye cone, radians. */
 const CONE_SPREAD = 0.3;
@@ -69,6 +75,14 @@ export function createLighting(config) {
 
   /** Accent the lit area is tinted with. Set per hub. */
   let tint = '#00c4a0';
+
+  // Where the spotlight actually is, damped toward wherever it has been asked to point.
+  // Sliding rather than cutting: the subject changes as you scroll, and a pool that
+  // teleported between paragraphs would read as a fault rather than a light being aimed.
+  let focusX = width / 2;
+  let focusY = height / 2;
+  let focusRadius = Math.min(width, height) * 0.4;
+  let focusInitialised = false;
 
   function resize() {
     ({ width, height } = fitCanvas(canvas, ctx));
@@ -111,10 +125,29 @@ export function createLighting(config) {
   /**
    * @param {number} dt milliseconds
    * @param {{ x: number, y: number }} source  The robot's camera head, in screen px
+   * @param {{ x: number, y: number, radius: number } | null} target
+   *   What the spotlight is aimed at — the copy being read, not the robot. The robot is
+   *   deliberately kept away from the text by the path, so a pool centred on it lights
+   *   empty margin and leaves the words dim. It carries the light; the light falls on
+   *   what matters.
    */
-  function step(dt, source) {
+  function step(dt, source, target) {
     elapsed += dt;
     const { darkness, ambient, eyeGlow, cone } = stage();
+
+    if (target) {
+      if (!focusInitialised) {
+        // Do not glide in from the middle of nowhere on the first frame.
+        focusX = target.x;
+        focusY = target.y;
+        focusRadius = target.radius;
+        focusInitialised = true;
+      } else {
+        focusX = damp(focusX, target.x, FOCUS_SMOOTHING, dt);
+        focusY = damp(focusY, target.y, FOCUS_SMOOTHING, dt);
+        focusRadius = damp(focusRadius, target.radius, FOCUS_SMOOTHING, dt);
+      }
+    }
 
     ctx.clearRect(0, 0, width, height);
 
@@ -125,13 +158,14 @@ export function createLighting(config) {
     ctx.save();
     ctx.globalCompositeOperation = 'destination-out';
 
+    // The spotlight, on the subject.
     if (ambient > 0) {
       punchRadial(ctx, {
-        x: source.x,
-        y: source.y,
-        radius: Math.min(width, height) * AMBIENT_RADIUS,
+        x: focusX,
+        y: focusY,
+        radius: focusRadius,
         intensity: ambient,
-        softness: 0.42,
+        softness: 0.5,
       });
     }
 
@@ -146,14 +180,14 @@ export function createLighting(config) {
       });
     }
 
-    // A small hard clearing at the lenses themselves, so the robot is never swallowed by
-    // its own darkness — this is what is visible during the opening, before the ambient
-    // pool exists at all.
+    // The robot's own glow. Small, and present from the opening onward — this is what is
+    // visible during the eyes phase, before any spotlight exists, and afterwards it stops
+    // the robot becoming a silhouette when it wanders outside the pool it is aiming.
     if (eyeGlow > 0) {
       punchRadial(ctx, {
         x: source.x,
         y: source.y,
-        radius: 74 * eyeGlow,
+        radius: SOURCE_GLOW * eyeGlow,
         intensity: eyeGlow,
         softness: 0.3,
       });
@@ -164,9 +198,9 @@ export function createLighting(config) {
     // Colour wash over the lit area, so each room reads warm or cool.
     if (ambient > 0) {
       applyTint(ctx, width, height, {
-        x: source.x,
-        y: source.y,
-        radius: Math.min(width, height) * 0.4,
+        x: focusX,
+        y: focusY,
+        radius: focusRadius * 0.9,
         color: tint,
         alpha: 0.1 * ambient,
       });
@@ -203,6 +237,11 @@ export function createLighting(config) {
       canvas.remove();
     },
 
-    debug: () => ({ elapsed: Math.round(elapsed), ...stage(), tint }),
+    debug: () => ({
+      elapsed: Math.round(elapsed),
+      ...stage(),
+      tint,
+      focus: { x: Math.round(focusX), y: Math.round(focusY), radius: Math.round(focusRadius) },
+    }),
   };
 }
