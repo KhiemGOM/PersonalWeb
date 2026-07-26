@@ -44,11 +44,20 @@ let lastFrame = performance.now();
   requestAnimationFrame(tickNarrator);
 })(lastFrame);
 
+/**
+ * Run after each view swap. Kept as a list so dev tooling can subscribe without the
+ * router growing knowledge of it.
+ * @type {Array<() => void>}
+ */
+const afterSwapHooks = [];
+
 const router = createRouter({
   routes,
   notFound,
   outlet: must('#scene-root'),
   announcer: must('#route-announcer'),
+
+  afterSwap: () => afterSwapHooks.forEach((hook) => hook()),
 
   // Full body walks the scroll path on the landing page; everywhere else the head pins
   // to the left edge. Set before the swap so the robot is already moving as the new
@@ -80,6 +89,16 @@ if (import.meta.env.DEV) {
     __router: router,
     __robot: robot,
     __narrator: narrator,
+  });
+
+  // Route inspector: Shift+D, or ?debug=path. Only meaningful on the landing page.
+  import('./components/path-debug.js').then(async ({ createPathDebug }) => {
+    await import('./styles/path-debug.css');
+    const inspector = createPathDebug();
+    // Text boxes move when the view does, so the drawing has to be recomputed after
+    // each swap rather than once at startup.
+    afterSwapHooks.push(() => requestAnimationFrame(inspector.redraw));
+    Object.assign(window, { __pathDebug: inspector });
   });
 
   // Exposed so the robot's rendered position can be checked against the authored curve —

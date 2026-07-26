@@ -90,6 +90,17 @@ everything immediately with no dialogue. Components read `data-mode` off `<html>
 CSS do the branching, rather than testing the mode at every call site. Anything narrated
 needs a skip path — typewriter effects must complete on click.
 
+### Inspecting the robot's route
+**Shift+D**, or load `/?debug=path`, to draw the route over the real page: the path in
+document space, the text blocks it must avoid, the robot's footprint at each waypoint, and
+any collisions in red.
+
+Use it before touching [journey.js](src/content/journey.js). Because the robot is anchored
+in the document, its route is one line running the entire length of the page, and whether
+it clears the copy is a question about the whole page at once — it cannot be judged from
+any single screenful. The first version of the path ran through all five text blocks and
+looked perfectly fine at every individual scroll position.
+
 ### Salvaged canvas helpers
 [src/lib/path.js](src/lib/path.js) — waypoint interpolation for the scroll-driven robot
 journey on `/`. `damp()` is frame-rate-independent; use it instead of a raw per-frame lerp,

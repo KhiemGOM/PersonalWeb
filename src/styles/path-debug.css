@@ -1,0 +1,74 @@
+/* Path inspector — dev only. Shift+D, or ?debug=path. */
+
+.path-debug {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  z-index: 45;
+  pointer-events: none;
+}
+
+.path-debug[hidden] {
+  display: none;
+}
+
+.path-debug__text {
+  fill: color-mix(in srgb, #4a9eff 18%, transparent);
+  stroke: #4a9eff;
+  stroke-width: 1;
+}
+
+.path-debug__edge {
+  stroke: color-mix(in srgb, var(--text) 22%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 6 8;
+}
+
+.path-debug__route {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+}
+
+/* Robot footprint at each waypoint — the route line alone hides how wide the rig is. */
+.path-debug__rig {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 45%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+.path-debug__hit {
+  fill: color-mix(in srgb, #ff4a4a 30%, transparent);
+  stroke: #ff4a4a;
+  stroke-width: 1.5;
+}
+
+.path-debug__stop {
+  fill: var(--accent);
+}
+
+.path-debug__mid {
+  fill: var(--text-faint);
+}
+
+.path-debug__label {
+  fill: var(--text);
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  opacity: 0.75;
+}
+
+.path-debug__readout {
+  position: fixed;
+  top: var(--space-xs);
+  left: 50%;
+  translate: -50% 0;
+  padding: var(--space-2xs) var(--space-s);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-display);
+  font-size: var(--step--1);
+  color: var(--text);
+}
