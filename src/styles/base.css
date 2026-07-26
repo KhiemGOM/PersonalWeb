@@ -16,8 +16,34 @@ html {
 
 body {
   min-height: 100dvh;
-  background: var(--bg);
   color: var(--text);
+
+  /* ---- Something for the light to land on ----
+     Against pure black a beam is just a shape; there is nothing in it to be revealed, so
+     it reads as a grey wedge floating over nothing. A faint texture underneath gives the
+     light something to catch, and it is the texture appearing and disappearing that makes
+     the beam look like light rather than paint.
+
+     Three layers, deliberately at coprime-ish spacings so they never line up into an
+     obvious repeat: a fine dot field, a coarser one offset against it, and a slow
+     large-scale wash for depth. All of it sits far below legibility in the dark — under
+     the spotlight it is barely there, and outside it is invisible.
+
+     Scrolls with the document rather than fixed to the viewport, so the robot travels
+     past it instead of dragging it along. */
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--text) 24%, transparent) 1px, transparent 1.6px),
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--accent) 16%, transparent) 1.4px, transparent 2px),
+    radial-gradient(ellipse 70% 50% at 30% 20%, color-mix(in srgb, var(--text) 4%, transparent), transparent 70%);
+  background-size:
+    46px 46px,
+    137px 119px,
+    100% 160vh;
+  background-position:
+    0 0,
+    23px 61px,
+    0 0;
   font-family: var(--font-body);
   font-size: var(--step-0);
   line-height: 1.6;

@@ -81,13 +81,11 @@ export function punchCone(ctx, beam) {
   const { intensity = 1 } = beam;
   if (intensity <= 0) return;
 
-  withConePath(ctx, beam, (length) => {
-    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, length);
-    // Clears the darkness outright near the lens rather than merely thinning it — a
-    // flashlight whose brightest point is still half-dark does not read as a beam.
-    g.addColorStop(0, `rgba(255,255,255,${1 * intensity})`);
-    g.addColorStop(0.4, `rgba(255,255,255,${0.82 * intensity})`);
-    g.addColorStop(0.78, `rgba(255,255,255,${0.34 * intensity})`);
+  withCone(ctx, beam, (length, inner) => {
+    const g = ctx.createRadialGradient(0, 0, inner, 0, 0, length);
+    g.addColorStop(0, `rgba(255,255,255,${0.86 * intensity})`);
+    g.addColorStop(0.45, `rgba(255,255,255,${0.6 * intensity})`);
+    g.addColorStop(0.82, `rgba(255,255,255,${0.18 * intensity})`);
     g.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = g;
     ctx.fill();
@@ -113,13 +111,13 @@ export function glowCone(ctx, beam) {
   const { color, alpha = 0.3, intensity = 1 } = beam;
   if (intensity <= 0 || alpha <= 0) return;
 
-  withConePath(ctx, beam, (length) => {
+  withCone(ctx, beam, (length, inner) => {
     ctx.globalCompositeOperation = 'lighter';
     ctx.globalAlpha = alpha * intensity;
 
-    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, length);
+    const g = ctx.createRadialGradient(0, 0, inner, 0, 0, length);
     g.addColorStop(0, color);
-    g.addColorStop(0.55, color);
+    g.addColorStop(0.5, color);
     g.addColorStop(1, 'transparent');
     ctx.fillStyle = g;
     ctx.fill();
@@ -127,28 +125,41 @@ export function glowCone(ctx, beam) {
 }
 
 /**
- * Set up the cone's transform and path, run `draw`, and clean up. Shared so the punch and
- * the glow cannot drift apart — they have to describe the same beam or the lit area and
- * the glowing area stop lining up.
+ * Set up the beam's transform and path, run `draw`, clean up.
+ *
+ * Shared by the punch and the glow so the two cannot drift apart — they have to describe
+ * the same beam, or the lit area and the glowing area stop lining up.
+ *
+ * Two properties do the work of making this look like light:
+ *
+ * FIXED LENGTH. Direction is all the beam takes from the target. Deriving length from the
+ * distance to the cursor meant a pointer across the page produced a 1200px wedge whose
+ * falloff had barely started by the screen edge — a flat slab that grew and shrank as the
+ * mouse moved, rather than a torch.
+ *
+ * BLURRED EDGES. A wedge has two dead-straight sides no gradient along its length can
+ * soften, and that is what made it read as a grey polygon. Blurring the whole fill
+ * feathers the rim properly. Overlapping progressively narrower wedges was tried first
+ * and is worse on both counts: the seams are still visible as bands, and stacking them
+ * under `lighter` saturates the core to white.
  *
  * @param {CanvasRenderingContext2D} ctx
  * @param {any} beam
- * @param {(length: number) => void} draw
+ * @param {(length: number, inner: number) => void} draw
  */
-function withConePath(ctx, beam, draw) {
-  const { x, y, targetX, targetY, spread = 0.28, overshoot = 80 } = beam;
-
-  const angle = Math.atan2(targetY - y, targetX - x);
-  const length = Math.hypot(targetX - x, targetY - y) + overshoot;
+function withCone(ctx, beam, draw) {
+  const { x, y, angle, length = 420, spread = 0.3, inner = 26, feather = 42 } = beam;
 
   ctx.save();
+  // Applies to the fill itself, so the cone's edges soften rather than its contents.
+  if (feather > 0) ctx.filter = `blur(${feather}px)`;
   ctx.translate(x, y);
   ctx.rotate(angle);
   ctx.beginPath();
   ctx.moveTo(0, 0);
   ctx.arc(0, 0, length, -spread, spread);
   ctx.closePath();
-  draw(length);
+  draw(length, inner);
   ctx.restore();
 }
 

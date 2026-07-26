@@ -57,7 +57,20 @@ const SOURCE_GLOW_INTRO = 70;
 const FOCUS_SMOOTHING = 0.06;
 
 /** Half-angle of the eye cone, radians. */
-const CONE_SPREAD = 0.32;
+const CONE_SPREAD = 0.3;
+
+/**
+ * How far the beam throws, in px. FIXED — the cursor sets its direction and nothing else.
+ *
+ * It used to reach to wherever the cursor was, which meant a pointer on the far side of
+ * the page produced a beam over a thousand pixels long. Its falloff had barely started by
+ * the screen edge, so it filled a third of the view as a flat slab, and it grew and shrank
+ * as the mouse moved — a torch whose throw depends on what you are pointing it at.
+ */
+const BEAM_LENGTH = 430;
+
+/** Gradient start, so the beam has no hot spot sitting on the robot's own face. */
+const BEAM_INNER = 30;
 
 /**
  * Colour of the beam itself.
@@ -68,8 +81,16 @@ const CONE_SPREAD = 0.32;
  */
 const BEAM_COLOR = '#dff7f0';
 
-/** How hard the beam adds light on top of what it has already uncovered. */
-const BEAM_GLOW = 0.55;
+/**
+ * How hard the beam adds light on top of what it has already uncovered.
+ *
+ * Modest. The first attempt stacked five wedges under `lighter` and saturated the core to
+ * 243 of 255 — a white slab, which is exactly what a blown-out highlight looks like.
+ */
+const BEAM_GLOW = 0.52;
+
+/** Blur radius on the beam, in px. What keeps the wedge from reading as a polygon. */
+const BEAM_FEATHER = 46;
 
 /** @param {number} t 0–1 */
 const easeOut = (t) => 1 - Math.pow(1 - t, 3);
@@ -108,6 +129,24 @@ export function createLighting(config) {
 
   function resize() {
     ({ width, height } = fitCanvas(canvas, ctx));
+  }
+
+  /**
+   * The beam, as pure geometry. Both passes take it from here so they cannot describe
+   * different cones — the direction is the only thing the cursor contributes.
+   *
+   * @param {{ x: number, y: number }} source
+   */
+  function beamGeometry(source) {
+    return {
+      x: source.x,
+      y: source.y,
+      angle: Math.atan2(mouseY - source.y, mouseX - source.x),
+      length: BEAM_LENGTH,
+      spread: CONE_SPREAD,
+      inner: BEAM_INNER,
+      feather: BEAM_FEATHER,
+    };
   }
 
   /** @param {PointerEvent} event */
@@ -202,14 +241,7 @@ export function createLighting(config) {
     }
 
     if (cone > 0) {
-      punchCone(ctx, {
-        x: source.x,
-        y: source.y,
-        targetX: mouseX,
-        targetY: mouseY,
-        spread: CONE_SPREAD,
-        intensity: cone,
-      });
+      punchCone(ctx, { ...beamGeometry(source), intensity: cone });
     }
 
     // The robot's own lamp. This is the whole of what is visible during the opening, and
@@ -239,11 +271,7 @@ export function createLighting(config) {
     // look like a beam rather than a hole.
     if (cone > 0) {
       glowCone(ctx, {
-        x: source.x,
-        y: source.y,
-        targetX: mouseX,
-        targetY: mouseY,
-        spread: CONE_SPREAD,
+        ...beamGeometry(source),
         color: BEAM_COLOR,
         alpha: BEAM_GLOW,
         intensity: cone,

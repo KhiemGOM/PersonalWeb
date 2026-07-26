@@ -17,11 +17,13 @@
 
 /* ---- Backdrop and light ---- */
 
+/* Deliberately transparent. Filling it with the background colour would paint over the
+   body's texture, leaving hub scenes as flat voids with nothing for the light to reveal —
+   the exact problem the texture exists to solve. */
 .scene__backdrop {
   position: absolute;
   inset: 0;
   z-index: -2;
-  background: var(--bg);
 }
 
 /* Each hub fades up its own light source after a transition: a podium spotlight reads
