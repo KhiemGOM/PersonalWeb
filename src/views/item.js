@@ -1,7 +1,8 @@
-import { scaffold } from './shared.js';
+import { createDetail, createDetailNotFound } from '../components/detail.js';
 import { getHub } from '../content/hubs.js';
 import { getItem } from '../content/items.js';
 import { getNarrator } from '../core/shell.js';
+import '../styles/detail.css';
 
 /** @param {import('../core/router.js').ViewContext} ctx */
 export const title = (ctx) => {
@@ -9,40 +10,17 @@ export const title = (ctx) => {
   return `${item?.title ?? 'Not found'} — Khiem`;
 };
 
-/**
- * Still a placeholder, but reading real content now. The proper detail template — dense
- * body, links, interactive slot — is Phase 2.
- * @param {import('../core/router.js').ViewContext} ctx
- */
+/** @param {import('../core/router.js').ViewContext} ctx */
 export function render(ctx) {
   const hub = getHub(ctx.meta.hub);
   const item = getItem(ctx.meta.hub, ctx.params.id);
 
-  if (!item) {
-    return scaffold({
-      label: '404',
-      title: 'No such thing.',
-      body: `Nothing in ${hub?.title ?? 'this hub'} is called "${ctx.params.id}".`,
-      links: [{ href: `/${ctx.meta.hub}`, text: `← ${hub?.title ?? 'Back'}` }],
-    });
-  }
+  if (!item) return createDetailNotFound(ctx.params.id, hub);
 
-  // An aside, not a narration: it fades on its own and is never recorded.
+  // The robot's line goes to the narrator as an aside — never into the page body. The
+  // narrator decides whether to perform it; in hurry mode it is dropped entirely, which
+  // is correct, because the description below already carries the substance.
   if (item.robotLine) getNarrator()?.react(item.robotLine);
 
-  return scaffold({
-    label: item.kicker,
-    title: item.title,
-    body: item.detail.join(' '),
-    debug: {
-      ...(item.interactive
-        ? { interactive: `${item.interactive.label} (${item.interactive.status})` }
-        : {}),
-      ...(item.robotLine ? { 'robot line': item.robotLine } : {}),
-    },
-    links: [
-      ...Object.entries(item.links).map(([name, href]) => ({ href, text: `${name} →` })),
-      { href: `/${item.hub}`, text: `← ${hub?.title ?? 'Back'}` },
-    ],
-  });
+  return createDetail(item, hub);
 }
