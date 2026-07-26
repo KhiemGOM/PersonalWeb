@@ -123,6 +123,10 @@ const router = createRouter({
       styles.getPropertyValue('--scene-light') || styles.getPropertyValue('--accent')
     );
 
+    // New room, new light. Raised after the tint is set, so it comes up in the right
+    // colour rather than fading in wrong and correcting itself.
+    lighting.bringUp();
+
     // A new view brings new things worth lighting, and new sections to settle onto.
     refreshFocusTargets();
     scrollGate.refresh();
@@ -135,10 +139,15 @@ const router = createRouter({
   // Full body walks the scroll path on the landing page; everywhere else the head pins
   // to the left edge. Set before the swap so the robot is already moving as the new
   // scene comes up, rather than snapping into place after it lands.
-  beforeSwap: ({ to }) => {
+  beforeSwap: async ({ from, to }) => {
     robot.setMode(to === '/' ? 'full' : 'head');
     // One room's narration must never bleed into the next.
     narrator.clear();
+
+    // Cut the lights and swap the room behind the blackout. Awaited, so the new scene
+    // never appears mid-fade — the point of a blackout is that the change happens where
+    // it cannot be seen. Skipped on first load, which has its own opening sequence.
+    if (from !== null) await lighting.blackOut();
   },
 });
 

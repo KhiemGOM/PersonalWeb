@@ -63,6 +63,16 @@ const SOURCE_GLOW_INTRO = 70;
 /** How quickly the spotlight slides when the subject changes. Fraction per 60Hz frame. */
 const FOCUS_SMOOTHING = 0.06;
 
+/**
+ * Room-to-room transitions: cut the lights, swap the room, bring them up.
+ *
+ * Out is fast and in is slow, deliberately. A light being killed is abrupt; a light
+ * coming up takes a moment to settle. Matching the two makes the whole thing feel like a
+ * crossfade rather than like a room being switched.
+ */
+const BLACKOUT_OUT_MS = 190;
+const BLACKOUT_IN_MS = 620;
+
 /** Half-angle of the eye cone, radians. */
 const CONE_SPREAD = 0.3;
 
@@ -153,6 +163,10 @@ export function createLighting(config) {
   let focusRadius = Math.min(width, height) * 0.4;
   let focusInitialised = false;
 
+  /** 0 = lit, 1 = every light out. Everything below is scaled through it. */
+  let blackout = 0;
+  let blackoutTarget = 0;
+
   function resize() {
     ({ width, height } = fitCanvas(canvas, ctx));
   }
@@ -234,7 +248,21 @@ export function createLighting(config) {
     // both the face and ostensibly the source of the light.
     const lamp = { x: (source.x + centre.x) / 2, y: (source.y + centre.y) / 2 };
     elapsed += dt;
-    const { darkness, ambient, eyeGlow, cone } = stage();
+
+    // Ease toward whichever way the lights are going. Linear in time rather than damped,
+    // so a transition takes the stated duration instead of asymptotically approaching it
+    // — a blackout that is still 4% lit is not a blackout.
+    const step = dt / (blackoutTarget > blackout ? BLACKOUT_OUT_MS : BLACKOUT_IN_MS);
+    blackout = blackoutTarget > blackout
+      ? Math.min(blackoutTarget, blackout + step)
+      : Math.max(blackoutTarget, blackout - step);
+
+    const lit = 1 - blackout;
+    const staged = stage();
+    const darkness = lerp(staged.darkness, 1, blackout);
+    const ambient = staged.ambient * lit;
+    const eyeGlow = staged.eyeGlow * lit;
+    const cone = staged.cone * lit;
 
     if (target) {
       if (!focusInitialised) {
@@ -329,6 +357,20 @@ export function createLighting(config) {
       if (color) tint = color.trim();
     },
 
+    /**
+     * Kill the lights for a room change. Resolves once it is actually dark, so the caller
+     * can swap the scene behind the blackout rather than in full view.
+     */
+    blackOut() {
+      blackoutTarget = 1;
+      return new Promise((resolve) => setTimeout(resolve, BLACKOUT_OUT_MS));
+    },
+
+    /** Bring them back up on the new room. */
+    bringUp() {
+      blackoutTarget = 0;
+    },
+
     /** Skip the opening — used when the visitor has already seen it this session. */
     finishIntro() {
       elapsed = Math.max(elapsed, CUE.spotlight);
@@ -354,6 +396,7 @@ export function createLighting(config) {
       elapsed: Math.round(elapsed),
       ...stage(),
       tint,
+      blackout: +blackout.toFixed(3),
       focus: { x: Math.round(focusX), y: Math.round(focusY), radius: Math.round(focusRadius) },
     }),
   };

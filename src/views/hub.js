@@ -2,6 +2,7 @@ import { createScene } from '../components/scene.js';
 import { getHub } from '../content/hubs.js';
 import { itemsForHub } from '../content/items.js';
 import { getNarrator } from '../core/shell.js';
+import { markSaid } from '../core/spoken.js';
 import '../styles/scene.css';
 
 /** @param {import('../core/router.js').ViewContext} ctx */
@@ -18,9 +19,15 @@ export function render(ctx) {
   const scene = createScene({ hub, items: itemsForHub(hub.slug) });
   active = scene;
 
-  // The narrator itself decides whether to perform this or just record it — that is a
-  // visitor-mode question, not a view one.
-  getNarrator()?.say(hub.narration);
+  // Introduce the room the first time; acknowledge it thereafter. Replaying a full
+  // introduction to somewhere the visitor has already been makes the robot look like it
+  // has no memory of the last thirty seconds.
+  //
+  // The narrator still decides whether to perform any of it or merely record it — that is
+  // a visitor-mode question, not a view one.
+  const firstVisit = markSaid(`hub:${hub.slug}`);
+  const lines = firstVisit ? hub.narration : hub.revisit;
+  if (lines?.length) getNarrator()?.say(lines);
 
   return scene.element;
 }

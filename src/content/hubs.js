@@ -16,8 +16,10 @@
  * @property {string} light         CSS token name for the scene's light source
  * @property {string} lightShape    How the light reads: 'spot' | 'wash' | 'pool'
  * @property {string} [background]  Scene art; placeholder until Phase 3
- * @property {string[]} narration   Robot hub intro, guided mode only. Also rendered as a
- *                                  visible transcript so it stays skimmable.
+ * @property {string[]} narration   Robot hub intro, guided mode only. Said on first arrival.
+ * @property {string[]} [revisit]   Said instead on later arrivals. Coming back to a room is
+ *                                  worth acknowledging, but being introduced to it a second
+ *                                  time is not — the robot should remember you were here.
  */
 
 /** @type {Record<string, Hub>} */
@@ -32,6 +34,7 @@ export const HUBS = {
       'The lab. Mind the cables.',
       'Everything on these shelves started as a problem I could not stop thinking about.',
     ],
+    revisit: ['Back in the lab. Nothing has moved.'],
   },
 
   academics: {
@@ -44,6 +47,7 @@ export const HUBS = {
       'The library. Quieter in here.',
       'Fair warning: some of these books are about robots. I find that flattering.',
     ],
+    revisit: ['The library again. Still quiet.'],
   },
 
   competitions: {
@@ -56,6 +60,7 @@ export const HUBS = {
       'The podium. Spotlight is a bit much, I know.',
       'He kept the medals. I keep the memories of the practice rounds. Guess which is heavier.',
     ],
+    revisit: ['Back on the podium. The spotlight missed you.'],
   },
 
   misc: {
@@ -68,6 +73,7 @@ export const HUBS = {
       'Careful, this one swirls.',
       "Nothing here fit the other three rooms, so it all ended up floating. Very emergent of it.",
     ],
+    revisit: ['The pool again. Something new may have drifted in. Probably not.'],
   },
 };
 
