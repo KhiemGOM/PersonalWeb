@@ -32,7 +32,7 @@ export const HUBS = {
     lightShape: 'wash',
     narration: [
       'The lab. Mind the cables.',
-      'Everything on these shelves started as a problem I could not stop thinking about.',
+      'Everything on these shelves started as a problem he could not stop thinking about.',
     ],
     revisit: ['Back in the lab. Nothing has moved.'],
   },

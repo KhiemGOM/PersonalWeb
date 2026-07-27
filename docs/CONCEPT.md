@@ -14,7 +14,7 @@ wiggly-line webtoon / gag-comic. **Not** corporate flat design.
 ### Always present
 - Floating contact button, every page
 - Robot companion — full body + scroll-driven movement on the main page; **head only,
-  pinned to the left edge**, on hub and detail pages
+  pinned to the right edge**, on hub and detail pages
 
 ### Pages
 | Route | Role |

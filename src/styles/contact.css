@@ -1,0 +1,183 @@
+/**
+ * Floating contact button and its panel.
+ *
+ * Bottom-left, mirroring the sound toggle's bottom-right — see src/styles/sound-toggle.css.
+ */
+
+.contact {
+  position: fixed;
+  left: var(--space-m);
+  bottom: var(--space-m);
+  z-index: var(--z-contact);
+}
+
+.contact__toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-2xs) var(--space-s);
+
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  backdrop-filter: blur(6px);
+
+  font-family: var(--font-display);
+  font-size: var(--step--1);
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+
+  opacity: 0.55;
+  transition:
+    opacity var(--tempo-hover) var(--ease-out),
+    color var(--tempo-hover) var(--ease-out),
+    border-color var(--tempo-hover) var(--ease-out);
+}
+
+.contact__toggle:hover,
+.contact__toggle:focus-visible,
+.contact__toggle[aria-expanded='true'] {
+  opacity: 1;
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.contact__icon {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+@media (max-width: 44rem) {
+  .contact__label {
+    display: none;
+  }
+}
+
+.contact__panel {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + var(--space-s));
+  width: min(22rem, calc(100vw - 2 * var(--space-m)));
+
+  display: grid;
+  gap: var(--space-m);
+  padding: var(--space-m);
+
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 24px 48px -20px rgb(0 0 0 / 0.6);
+}
+
+/* The [hidden] attribute selector has to outrank the plain class above for the browser's
+   built-in [hidden] { display: none } rule to still apply — an author rule that sets
+   `display` on the same element as a tie-specificity UA rule always wins the tie, so
+   without this the panel stays laid out (just invisible-until-you-notice) instead of
+   actually leaving the accessibility tree and layout. */
+.contact__panel[hidden] {
+  display: none;
+}
+
+.contact__details {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-2xs) var(--space-m);
+  font-size: var(--step--1);
+}
+
+.contact__details dt {
+  color: var(--text-faint);
+  font-family: var(--font-display);
+  letter-spacing: 0.03em;
+}
+
+.contact__details dd a {
+  color: var(--text);
+  border-bottom: 1px solid transparent;
+  transition: color var(--tempo-hover) var(--ease-out), border-color var(--tempo-hover) var(--ease-out);
+}
+
+.contact__details dd a:hover,
+.contact__details dd a:focus-visible {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.contact__or {
+  font-size: var(--step--1);
+  color: var(--text-faint);
+  border-top: 1px solid var(--hairline);
+  padding-top: var(--space-m);
+}
+
+.contact__form {
+  display: grid;
+  gap: var(--space-s);
+}
+
+.contact__field {
+  display: grid;
+  gap: var(--space-2xs);
+  font-size: var(--step--1);
+  color: var(--text-muted);
+}
+
+.contact__field input,
+.contact__field textarea {
+  font: inherit;
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg) 60%, transparent);
+  border: 1px solid var(--hairline);
+  border-radius: calc(var(--radius) * 0.6);
+  padding: var(--space-2xs) var(--space-s);
+  resize: vertical;
+}
+
+.contact__field input:focus-visible,
+.contact__field textarea:focus-visible {
+  border-color: var(--accent);
+}
+
+.contact__submit {
+  justify-self: start;
+  font-family: var(--font-display);
+  font-size: var(--step--1);
+  font-weight: 600;
+  color: var(--bg);
+  background: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 70%, black);
+  border-radius: var(--radius-pill);
+  padding: var(--space-2xs) var(--space-m);
+  transition: background var(--tempo-hover) var(--ease-out);
+}
+
+.contact__submit:hover,
+.contact__submit:focus-visible {
+  background: color-mix(in srgb, var(--accent) 88%, white);
+}
+
+.contact__submit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.contact__status {
+  font-size: var(--step--1);
+  color: var(--text-faint);
+}
+
+.contact__status:empty {
+  display: none;
+}
+
+.contact__status[data-state='success'] {
+  color: var(--accent);
+}
+
+.contact__status[data-state='error'] {
+  color: #ff8f8f;
+}

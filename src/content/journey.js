@@ -42,28 +42,44 @@
 export const JOURNEY = [
   // Measured windows during which the robot is level with each block of text, and so
   // must already be clear of it. Crossings happen only in the gaps between them.
-  //   intro 0.00–0.06   projects 0.15–0.25   academics 0.34–0.46
-  //   competitions 0.54–0.66   misc 0.75–0.85   about 0.95–1.00
+  //   intro 0.00–0.05      projects 0.12–0.21   academics 0.28–0.38
+  //   competitions 0.45–0.55   misc 0.62–0.71   experience 0.79–0.88
+  //   about 0.96–1.00
+  //
+  // Seven stops now, not six — adding 'experience' pushed every existing stop's progress
+  // down by 5/6 (k/5 on a 6-stop page becomes k/6 on a 7-stop one; see ./landing.js's dev
+  // check). Everything through 'misc' is otherwise untouched: appending sections after it
+  // doesn't move where any earlier stop sits in the document, so the geometry already
+  // verified collision-free there still is — only the labels changed.
+  //
+  // 'experience' is right-aligned copy (continuing the hubs' alternation rather than
+  // dropping out of it), so unlike 'about' it needs the opposite-side treatment: x=0.2,
+  // crossed to from misc's x=0.8 in the gap after misc's window, then crossed back out to
+  // 0.87 — 'about' is centred, same margin as 'intro' — in the gap before about's.
 
   { progress: 0.0, x: 0.87, y: 0.5, stop: 'intro' },
-  { progress: 0.06, x: 0.87, y: 0.5 },
+  { progress: 0.05, x: 0.87, y: 0.5 },
 
-  { progress: 0.145, x: 0.2, y: 0.5 },
-  { progress: 0.2, x: 0.2, y: 0.5, stop: 'projects' },
-  { progress: 0.25, x: 0.2, y: 0.5 },
+  { progress: 0.121, x: 0.2, y: 0.5 },
+  { progress: 0.167, x: 0.2, y: 0.5, stop: 'projects' },
+  { progress: 0.208, x: 0.2, y: 0.5 },
 
-  { progress: 0.34, x: 0.8, y: 0.5 },
-  { progress: 0.4, x: 0.8, y: 0.5, stop: 'academics' },
-  { progress: 0.455, x: 0.8, y: 0.5 },
+  { progress: 0.283, x: 0.8, y: 0.5 },
+  { progress: 0.333, x: 0.8, y: 0.5, stop: 'academics' },
+  { progress: 0.379, x: 0.8, y: 0.5 },
 
-  { progress: 0.535, x: 0.2, y: 0.5 },
-  { progress: 0.6, x: 0.2, y: 0.5, stop: 'competitions' },
-  { progress: 0.66, x: 0.2, y: 0.5 },
+  { progress: 0.446, x: 0.2, y: 0.5 },
+  { progress: 0.5, x: 0.2, y: 0.5, stop: 'competitions' },
+  { progress: 0.55, x: 0.2, y: 0.5 },
 
-  { progress: 0.745, x: 0.8, y: 0.5 },
-  { progress: 0.8, x: 0.8, y: 0.5, stop: 'misc' },
-  { progress: 0.85, x: 0.8, y: 0.5 },
+  { progress: 0.621, x: 0.8, y: 0.5 },
+  { progress: 0.667, x: 0.8, y: 0.5, stop: 'misc' },
+  { progress: 0.708, x: 0.8, y: 0.5 },
 
-  { progress: 0.945, x: 0.87, y: 0.5 },
+  { progress: 0.787, x: 0.2, y: 0.5 },
+  { progress: 0.833, x: 0.2, y: 0.5, stop: 'experience' },
+  { progress: 0.875, x: 0.2, y: 0.5 },
+
+  { progress: 0.955, x: 0.87, y: 0.5 },
   { progress: 1.0, x: 0.87, y: 0.5, stop: 'about' },
 ];

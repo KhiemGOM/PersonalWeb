@@ -15,6 +15,7 @@
  */
 
 import { el } from '../lib/dom.js';
+import { parseParagraph, richText } from '../lib/richtext.js';
 
 /**
  * @param {import('../content/items.js').Item} item
@@ -41,11 +42,15 @@ export function createDetail(item, hub) {
       item.blurb && el('p', { className: 'detail__blurb' }, item.blurb)
     ),
 
-    // The dense part. Paragraphs, not dialogue.
+    // The dense part. Paragraphs, not dialogue. A "> " prefix pulls a line out of the
+    // flow instead of leaving every sentence at the same visual weight.
     el(
       'div',
       { className: 'detail__body' },
-      item.detail.map((paragraph) => el('p', null, paragraph))
+      item.detail.map((paragraph) => {
+        const { pull, text } = parseParagraph(paragraph);
+        return el('p', { className: pull ? 'detail__pull' : undefined }, ...richText(text));
+      })
     ),
 
     links.length > 0 &&

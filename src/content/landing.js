@@ -36,11 +36,14 @@ export const SECTIONS = [
     // TODO(copy): title wording still open — "Khiem's personal dimension" or an alternative.
     heading: "Khiem's personal dimension",
     blurb: 'Four rooms, one robot, and a job page that does not exist yet. Scroll.',
-    // TODO(copy): this is also where the visitor-intent question goes in Phase 2.
+    // The visitor-intent question (docs/CONCEPT.md, "Visitor branch") follows this as its
+    // own beat, asked by src/views/home.js once these lines finish — the last line here
+    // deliberately sets it up rather than telling the visitor to scroll, which the old
+    // copy did right before interrupting them to ask something.
     narration: [
       'Oh — hello. Give me a second, I was not expecting anyone.',
       'Right. I show people around this place. Four rooms, one of them a lie.',
-      'Scroll whenever you like. I will keep up. Mostly.',
+      'Before you dive in, though — one quick thing.',
     ],
   },
 
@@ -80,15 +83,36 @@ export const SECTIONS = [
     narration: ['And the pool, where everything that fit nowhere else ended up floating.'],
   },
 
+  // Not a hub, not a trophy — the 404 gag from docs/CONCEPT.md. Reads as an ordinary
+  // closing section on the way in; the reveal is the point, so nothing here gives it
+  // away before the click. The robot's own line is the one hint, for anyone listening.
+  // Placed before About, not after it — About's own narration says "that is the tour",
+  // so it has to stay the actual last stop or that line stops making sense.
+  //
+  // 'right', not 'center': it follows misc (left-aligned), continuing the hubs'
+  // alternation rather than dropping out of it the way the two truly-centred stops
+  // (intro, about) do. See journey.js for the waypoint this requires.
+  {
+    id: 'experience',
+    kind: 'page',
+    align: 'right',
+    label: 'Experience',
+    heading: 'Where I have worked.',
+    blurb: 'The professional bit.',
+    href: '/experience',
+    cta: 'Take a look',
+    narration: ['And this is the part where I would tell you where he has worked.'],
+  },
+
   {
     id: 'about',
     kind: 'page',
     align: 'center',
     label: 'About',
     heading: 'And the person operating all this.',
-    blurb: 'Theoretical physics, anime, Minecraft, and a redstone CPU that is going slowly.',
+    blurb: 'Theoretical physics, anime, and Minecraft.',
     href: '/about',
-    cta: 'Meet him',
+    cta: 'Meet me',
     narration: ['That is the tour. The person responsible is through here, if you want a word.'],
   },
 ];

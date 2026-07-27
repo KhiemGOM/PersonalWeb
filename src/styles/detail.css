@@ -1,15 +1,14 @@
 /**
  * Detail page.
  *
- * Reads as a document, not a scene. The robot is pinned to the left edge here and the
- * narrator sits bottom-left, so the column is offset right to stay clear of both.
+ * Reads as a document, not a scene. The robot is pinned to the right edge here, clear of
+ * a column that — like all body text — starts reading from the left.
  */
 
 .detail {
   min-height: 100dvh;
   max-width: 62ch;
-  /* Clears the pinned robot head on the left. */
-  margin-inline: clamp(var(--space-m), 14vw, 16rem) auto;
+  margin-inline: auto;
   padding-block: var(--space-2xl);
   padding-inline: var(--space-m);
   display: grid;
@@ -62,6 +61,35 @@
 
 .detail__body p {
   max-width: 68ch;
+}
+
+.detail__body strong {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.detail__body em {
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+.detail__body code {
+  font-family: var(--font-display);
+  font-size: 0.88em;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  padding: 0.05em 0.4em;
+  border-radius: 4px;
+}
+
+/* A line pulled out of the flow rather than left at the same weight as everything
+   around it — for the one beat per entry that's worth landing on its own. */
+.detail__pull {
+  font-family: var(--font-display);
+  font-size: var(--step-1);
+  color: var(--text);
+  border-left: 2px solid var(--accent);
+  padding-left: var(--space-m);
 }
 
 /* ---- Links ---- */
@@ -118,8 +146,6 @@
 
 @media (max-width: 44rem) {
   .detail {
-    /* The robot head goes out of the way on narrow screens, so reclaim the margin. */
-    margin-inline: auto;
     padding-block: var(--space-xl) var(--space-2xl);
   }
 

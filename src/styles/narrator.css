@@ -88,10 +88,16 @@
 }
 
 .narrator[data-state='narrate'] .narrator__bubble,
-.narrator[data-state='react'] .narrator__bubble {
+.narrator[data-state='react'] .narrator__bubble,
+.narrator[data-state='ask'] .narrator__bubble,
+.narrator[data-state='reply'] .narrator__bubble {
   opacity: 1;
   scale: 1;
 }
+
+/* The question and its reply stay in the same anchored bubble as everything else the
+   robot says — right by its head, tail and all, text left-aligned like every other line.
+   Only the two options underneath needed their own axis — see .narrator__choices. */
 
 /* Reactions are asides, so they read lighter than a hub introduction. */
 .narrator[data-state='react'] .narrator__bubble {
@@ -152,14 +158,11 @@
   cursor: pointer;
 }
 
-/* Caret, so a paused line reads as mid-sentence rather than finished. Suppressed once
-   the line is complete: at that point the continue prompt is the thing to look at. */
-.narrator[data-awaiting='true'] .narrator__line::after {
-  display: none;
-}
-
+/* Caret, so a paused line reads as mid-sentence rather than finished. */
 .narrator[data-state='narrate'] .narrator__line::after,
-.narrator[data-state='react'] .narrator__line::after {
+.narrator[data-state='react'] .narrator__line::after,
+.narrator[data-state='ask'] .narrator__line::after,
+.narrator[data-state='reply'] .narrator__line::after {
   content: '';
   display: inline-block;
   width: 0.5ch;
@@ -170,10 +173,103 @@
   animation: caret 1s steps(2) infinite;
 }
 
+/* Suppressed once the line is complete: at that point the continue prompt (or the
+   choice buttons) is the thing to look at. Declared AFTER the rule above on purpose —
+   both match with identical specificity, so source order is what decides the tie, and
+   "finished" must always beat "this state types." */
+.narrator[data-awaiting='true'] .narrator__line::after {
+  display: none;
+}
+
 @keyframes caret {
   50% {
     opacity: 0;
   }
+}
+
+/* ---- Choice buttons ----
+   The one place the bubble asks something it needs answered rather than merely says
+   something. Lives in normal document flow below the line, so the bubble grows to fit
+   rather than the buttons floating over text the way the continue prompt does. */
+
+.narrator__choices {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-s);
+  margin-top: var(--space-s);
+  /* The bubble's own pointer-events:none (inherited from .narrator) would otherwise let
+     clicks fall through the buttons onto whatever they're drawn over. */
+  pointer-events: auto;
+}
+
+.narrator[data-state='ask'][data-awaiting='true'] .narrator__choices {
+  display: flex;
+}
+
+/* The arrow means "click anywhere to continue" — not true here, so it must not show
+   alongside buttons that say otherwise. Source order breaks the tie with the general
+   [data-awaiting='true'] rule above. */
+.narrator[data-state='ask'] .narrator__continue {
+  display: none;
+}
+
+/* Plain text by default — only the intended path (below) earns actual button chrome. */
+.narrator__choice {
+  font: inherit;
+  cursor: pointer;
+  text-align: center;
+  white-space: nowrap;
+  background: none;
+  border: none;
+  padding: 0;
+  translate: 0 0;
+  transition:
+    background var(--tempo-hover) var(--ease-out),
+    border-color var(--tempo-hover) var(--ease-out),
+    color var(--tempo-hover) var(--ease-out),
+    box-shadow var(--tempo-hover) var(--ease-out),
+    translate var(--tempo-hover) var(--ease-out);
+}
+
+/* The intended path — guided — reads as the one the robot actually wants picked: a real
+   keycap, filled and on-brand, with a hard offset shadow that shortens on press so it
+   looks like it's actually moving. */
+.narrator__choice[data-variant='primary'] {
+  font-family: var(--font-display);
+  font-size: var(--step--1);
+  font-weight: 600;
+  border-radius: var(--radius-pill);
+  padding: var(--space-2xs) var(--space-m);
+  color: var(--bg);
+  background: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 70%, black);
+  box-shadow: 0 3px 0 0 color-mix(in srgb, var(--accent) 55%, black);
+}
+
+.narrator__choice[data-variant='primary']:hover,
+.narrator__choice[data-variant='primary']:focus-visible {
+  background: color-mix(in srgb, var(--accent) 88%, white);
+  translate: 0 -1px;
+  box-shadow: 0 4px 0 0 color-mix(in srgb, var(--accent) 55%, black);
+}
+
+.narrator__choice[data-variant='primary']:active {
+  translate: 0 2px;
+  box-shadow: 0 1px 0 0 color-mix(in srgb, var(--accent) 55%, black);
+}
+
+/* Hurry is available, not offered — no button at all, just muted text one shade lighter
+   on hover, so choosing it takes actually meaning to rather than pressing the other thing
+   next to it. */
+.narrator__choice[data-variant='secondary'] {
+  font-size: var(--step--1);
+  color: var(--text-faint);
+}
+
+.narrator__choice[data-variant='secondary']:hover,
+.narrator__choice[data-variant='secondary']:focus-visible {
+  color: var(--text-muted);
 }
 
 /* ---- Transcript ----

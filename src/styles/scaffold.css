@@ -4,6 +4,7 @@
  */
 
 .scaffold {
+  position: relative;
   min-height: 100dvh;
   display: grid;
   align-content: center;
@@ -11,6 +12,23 @@
   max-width: 62ch;
   margin-inline: auto;
   padding: var(--space-xl) var(--space-l);
+}
+
+/* Pinned top-left within the section, independent of the centred content block below
+   it, same convention as .detail__back / .scene__back: a page's way back is not just
+   another item in a list of links after everything else. */
+.scaffold__back {
+  position: absolute;
+  left: var(--space-l);
+  top: var(--space-xl);
+  font-size: var(--step--1);
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  transition: color var(--tempo-hover) var(--ease-out);
+}
+
+.scaffold__back:hover {
+  color: var(--accent);
 }
 
 .scaffold__title {

@@ -11,6 +11,7 @@ import { SECTIONS, resolveSection } from '../content/landing.js';
 import { getNarrator, getRobot } from '../core/shell.js';
 import { lockScroll, unlockScroll } from '../core/scroll-lock.js';
 import { markSaid } from '../core/spoken.js';
+import * as visitor from '../core/visitor-mode.js';
 import '../styles/landing.css';
 
 export const title = "Khiem's personal dimension";
@@ -68,14 +69,60 @@ export function render() {
       narrator?.say(section.narration);
     }) ?? null;
 
-  // The opening, once. Scrolling is held until the robot has finished saying it — the
-  // page should not slide out from under an introduction that is still being delivered.
-  // Released on completion, which in hurry mode is immediately, since nothing is
-  // performed at all.
+  // The opening, once. Scrolling is held until the robot has finished saying it, and —
+  // for a first-time visitor — until they've answered the visitor-intent question that
+  // follows it (docs/CONCEPT.md, "Visitor branch"). Released on completion, which in
+  // hurry mode is immediately, since nothing is performed at all.
   const intro = SECTIONS.find((s) => s.id === 'intro');
   if (intro?.narration && markSaid(`landing:${intro.id}`)) {
     lockScroll(INTRO_HOLD, { direction: 'forward', maxMs: 60000 });
-    narrator?.say(intro.narration, { onComplete: () => unlockScroll(INTRO_HOLD) });
+    narrator?.say(intro.narration, {
+      onComplete: () => {
+        if (!visitor.needsAsk()) {
+          unlockScroll(INTRO_HOLD);
+          return;
+        }
+
+        // The scroll lock only stops scroll gestures — a hub link sitting further down
+        // the page is still reachable by Tab and, once focused, Enter navigates straight
+        // through it, which would ship the visitor off before the question is answered.
+        // Inert takes the whole scene out of the tab order and off pointer events until
+        // there is a choice to hand back to it.
+        const scene = document.getElementById('scene-root');
+        scene?.setAttribute('inert', '');
+
+        narrator.ask(
+          "What's the purpose of your visit today?",
+          [
+            // Guided is the intended default experience, so it reads as the obvious
+            // press — hurry is there for anyone who really wants it, not offered evenly.
+            // Each reply plays before the mode actually takes effect, so the choice gets
+            // acknowledged rather than the bubble just vanishing into the next thing.
+            {
+              // Short enough to sit on one line in the bubble — "lead me" carries the
+              // same intent as the fuller CONCEPT.md phrasing without the wrap.
+              label: 'Show me around',
+              value: visitor.MODES.GUIDED,
+              variant: 'primary',
+              reply: "Good. Scroll whenever you like — I'll keep up. Mostly.",
+            },
+            {
+              label: "I'm in a hurry",
+              value: visitor.MODES.HURRY,
+              variant: 'secondary',
+              reply: "Noted. We could've taken our time — but hurry it is.",
+            },
+          ],
+          {
+            onChoose: (mode) => visitor.choose(mode),
+            onComplete: () => {
+              scene?.removeAttribute('inert');
+              unlockScroll(INTRO_HOLD);
+            },
+          }
+        );
+      },
+    });
   }
 
   return el(
@@ -96,6 +143,9 @@ export function render() {
 export function destroy() {
   unsubscribe?.();
   unsubscribe = null;
-  // Leaving mid-introduction must not carry the hold to the next page.
+  // Leaving mid-introduction must not carry the hold to the next page. #scene-root is the
+  // router's outlet, not this view's own element — an inert left set here would silently
+  // disable every view that swaps in after it.
   unlockScroll(INTRO_HOLD);
+  document.getElementById('scene-root')?.removeAttribute('inert');
 }

@@ -1,0 +1,133 @@
+/**
+ * Blog — list and post views.
+ *
+ * Same column treatment as detail.css: centred, robot pinned to the right edge and
+ * hidden below the same breakpoint detail.css and robot.css share.
+ */
+
+.blog {
+  min-height: 100dvh;
+  max-width: 62ch;
+  margin-inline: auto;
+  padding-block: var(--space-2xl);
+  padding-inline: var(--space-m);
+  display: grid;
+  gap: var(--space-l);
+  align-content: start;
+}
+
+.blog__back {
+  justify-self: start;
+  font-size: var(--step--1);
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  transition: color var(--tempo-hover) var(--ease-out);
+}
+
+.blog__back:hover {
+  color: var(--accent);
+}
+
+.blog__header {
+  display: grid;
+  gap: var(--space-s);
+}
+
+.blog__title,
+.blog__post-title {
+  font-size: var(--step-3);
+}
+
+.blog__intro {
+  color: var(--text-muted);
+  max-width: 40ch;
+}
+
+.blog__date {
+  display: block;
+  font-size: var(--step--1);
+  color: var(--text-faint);
+  font-family: var(--font-display);
+  letter-spacing: 0.03em;
+}
+
+.blog__list {
+  list-style: none;
+  display: grid;
+  gap: var(--space-l);
+}
+
+.blog__entry-link {
+  display: grid;
+  gap: var(--space-2xs);
+}
+
+.blog__entry-title {
+  font-size: var(--step-1);
+  transition: color var(--tempo-hover) var(--ease-out);
+}
+
+.blog__entry-link:hover .blog__entry-title,
+.blog__entry-link:focus-visible .blog__entry-title {
+  color: var(--accent);
+}
+
+.blog__entry-excerpt {
+  color: var(--text-muted);
+}
+
+.blog__empty {
+  color: var(--text-faint);
+}
+
+.blog__body {
+  display: grid;
+  gap: var(--space-m);
+  font-size: var(--step-0);
+  line-height: 1.65;
+  color: var(--text);
+}
+
+.blog__body p {
+  max-width: 68ch;
+}
+
+.blog__body strong {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.blog__body em {
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+.blog__body code {
+  font-family: var(--font-display);
+  font-size: 0.88em;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  padding: 0.05em 0.4em;
+  border-radius: 4px;
+}
+
+/* A line pulled out of the flow rather than left at the same weight as everything
+   around it — for the one beat per post that's worth landing on its own. */
+.blog__pull {
+  font-family: var(--font-display);
+  font-size: var(--step-1);
+  color: var(--text);
+  border-left: 2px solid var(--accent);
+  padding-left: var(--space-m);
+}
+
+@media (max-width: 44rem) {
+  .blog {
+    padding-block: var(--space-xl) var(--space-2xl);
+  }
+
+  .blog__title,
+  .blog__post-title {
+    font-size: var(--step-2);
+  }
+}

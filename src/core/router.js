@@ -87,6 +87,43 @@ function clearGuard() {
 }
 
 /**
+ * Where the visitor was on each path, persisted so it survives an actual reload and not
+ * just in-app navigation. An in-memory Map alone remembered this across clicking around,
+ * but F5 replaces the whole JS runtime — the Map disappears with it, and "remember where
+ * they were" stopped being true for the one navigation (a reload) visitors reach for most.
+ */
+const SCROLL_KEY = 'router.scrollMemory';
+
+/** @returns {Map<string, number>} */
+function readScrollMemory() {
+  try {
+    const raw = sessionStorage.getItem(SCROLL_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return new Map(Object.entries(parsed).filter(([, y]) => typeof y === 'number'));
+  } catch {
+    return new Map();
+  }
+}
+
+/** Testing and the debug console — see core/debug-first-visit.js. */
+export function forgetScrollMemory() {
+  try {
+    sessionStorage.removeItem(SCROLL_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** @param {Map<string, number>} memory */
+function writeScrollMemory(memory) {
+  try {
+    sessionStorage.setItem(SCROLL_KEY, JSON.stringify(Object.fromEntries(memory)));
+  } catch {
+    /* Best-effort — losing this only means a reload lands at the top, not broken. */
+  }
+}
+
+/**
  * Last-resort UI when a view cannot be loaded even after a reload.
  * Deliberately plain: whatever is broken, this must not depend on it.
  * @param {URL} url
@@ -136,9 +173,12 @@ export function createRouter(config) {
    * browser's own version cannot help here: it restores before the new view has
    * rendered, when the page is still the wrong height.
    *
+   * Loaded from sessionStorage rather than starting empty, so an actual reload restores
+   * it the same way in-app navigation always did.
+   *
    * @type {Map<string, number>}
    */
-  const scrollMemory = new Map();
+  const scrollMemory = readScrollMemory();
 
   // Guards against a slow dynamic import resolving after a newer navigation started.
   let navToken = 0;
@@ -217,8 +257,12 @@ export function createRouter(config) {
 
     // Note where they were before anything replaces it. Captured here rather than on the
     // way out of a link click, so it covers every route away from this page — browser
-    // back, a keyboard shortcut, anything.
-    if (activePath !== null) scrollMemory.set(activePath, window.scrollY);
+    // back, a keyboard shortcut, anything. Persisted immediately rather than only on
+    // unload, since there's no reliable unload event for every way a tab can go away.
+    if (activePath !== null) {
+      scrollMemory.set(activePath, window.scrollY);
+      writeScrollMemory(scrollMemory);
+    }
 
     await beforeSwap?.({ from: activePath, to: url.pathname, route });
     if (token !== navToken) return;
@@ -296,6 +340,18 @@ export function createRouter(config) {
     render(new URL(window.location.href), { restoreScroll: true });
   }
 
+  /**
+   * Catches the case the capture in render() cannot: scrolling around on the CURRENT
+   * page and then reloading directly, with no navigation in between to trigger that
+   * capture. pagehide covers a reload, a closed tab, or a typed-in URL alike, and fires
+   * reliably where beforeunload does not (bfcache, mobile Safari).
+   */
+  function onPageHide() {
+    if (activePath === null) return;
+    scrollMemory.set(activePath, window.scrollY);
+    writeScrollMemory(scrollMemory);
+  }
+
   function start() {
     // Own scroll position explicitly — the default 'auto' restores the previous page's
     // offset before the new view has rendered, which reads as a jump.
@@ -303,12 +359,14 @@ export function createRouter(config) {
 
     document.addEventListener('click', onClick);
     window.addEventListener('popstate', onPopState);
+    window.addEventListener('pagehide', onPageHide);
     return render(new URL(window.location.href));
   }
 
   function stop() {
     document.removeEventListener('click', onClick);
     window.removeEventListener('popstate', onPopState);
+    window.removeEventListener('pagehide', onPageHide);
     activeView?.destroy?.();
     activeView = null;
   }

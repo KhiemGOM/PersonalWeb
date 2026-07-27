@@ -117,6 +117,13 @@ const listeners = new Set();
 let current = null;
 
 /**
+ * Whether the last resolve() left the visitor unasked. Read by the landing question, so
+ * it knows whether to appear without main.js having to hand its decision object around.
+ * Cleared by choose(), since answering is what the asking was for.
+ */
+let awaitingChoice = false;
+
+/**
  * Reflect the mode on <html> so CSS can branch on it. Components read `data-mode` rather
  * than testing the mode at every call site — hiding transcripts in hurry mode is then a
  * stylesheet concern, not a conditional scattered through every component.
@@ -140,17 +147,25 @@ function apply(mode, persist = true) {
 export function resolve() {
   const active = session.get(SESSION_KEY);
   if (isMode(active)) {
+    awaitingChoice = false;
     apply(active);
     return { mode: active, ask: false, reason: 'session' };
   }
 
   const preferred = preferredMode();
   if (preferred) {
+    awaitingChoice = false;
     apply(preferred);
     return { mode: preferred, ask: false, reason: 'streak' };
   }
 
+  awaitingChoice = true;
   return { mode: null, ask: true, reason: 'unasked' };
+}
+
+/** Should the landing question still appear? False once it's been answered this session. */
+export function needsAsk() {
+  return awaitingChoice;
 }
 
 /**
@@ -163,6 +178,7 @@ export function choose(mode) {
 
   const history = [...getHistory(), mode].slice(-HISTORY_CAP);
   local.set(HISTORY_KEY, JSON.stringify(history));
+  awaitingChoice = false;
   apply(mode);
   return mode;
 }
@@ -204,5 +220,6 @@ export function forget() {
   local.remove(HISTORY_KEY);
   session.remove(SESSION_KEY);
   current = null;
+  awaitingChoice = false;
   delete document.documentElement.dataset.mode;
 }

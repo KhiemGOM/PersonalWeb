@@ -12,8 +12,9 @@ import './styles/scaffold.css';
 import './styles/robot.css';
 import './styles/narrator.css';
 import './styles/sound-toggle.css';
+import './styles/contact.css';
 
-import { createRouter } from './core/router.js';
+import { createRouter, forgetScrollMemory } from './core/router.js';
 import { createRobot } from './components/robot.js';
 import { createNarrator } from './components/narrator.js';
 import { createLighting } from './components/lighting.js';
@@ -25,19 +26,31 @@ import { routes, notFound } from './routes.js';
 import * as visitor from './core/visitor-mode.js';
 import { sound } from './core/sound.js';
 import { createSoundToggle } from './components/sound-toggle.js';
+import { createContact } from './components/contact.js';
+import { forgetSaid } from './core/spoken.js';
+import { isForced as isFirstVisitForced, initDebugFirstVisit } from './core/debug-first-visit.js';
 import { must } from './lib/dom.js';
 
 sound.init();
 
-// DEBUG: treat every refresh as a first visit, so the opening narration replays and the
-// visitor-intent branch is always exercised. Flip to false to test the streak-to-default
-// behaviour, which by design needs choices to survive a reload.
-const DEBUG_ALWAYS_FIRST_VISIT = true;
-if (import.meta.env.DEV && DEBUG_ALWAYS_FIRST_VISIT) visitor.forget();
+// DEBUG: forces every reload to look like a first visit, so the opening narration
+// replays and the visitor-intent branch is always exercised. Flippable at runtime with
+// Shift+F rather than a hardcoded boolean, since testing the OTHER path (does a reload
+// actually remember you) is just as important now that spoken.js and the router's
+// scroll memory persist across one. forgetSaid() and forgetScrollMemory() alongside
+// visitor.forget() keep this internally consistent: forgetting the visitor's choice
+// without also forgetting what's been said and where they scrolled to would ask the
+// question again while skipping the intro meant to precede it, mid-page.
+if (import.meta.env.DEV && isFirstVisitForced()) {
+  visitor.forget();
+  forgetSaid();
+  forgetScrollMemory();
+}
 
 // Decide the visitor's mode before anything renders. `ask` means they've earned no
-// default yet — the landing question that resolves it is Phase 2 work, so until then we
-// run guided without persisting, leaving a reload still in the "should ask" state.
+// default yet — the landing page asks once the opening line finishes (src/views/home.js).
+// Until answered, run guided without persisting: the intro plays as a performance for
+// everyone, and a reload before answering still lands in the "should ask" state.
 const decision = visitor.resolve();
 if (decision.ask) {
   visitor.setSessionMode(visitor.MODES.GUIDED, { persist: false });
@@ -53,10 +66,19 @@ const narrator = createNarrator({
 
 const lighting = createLighting({ root: must('#light-layer') });
 
-setShell({ robot, narrator });
+const contact = createContact();
+setShell({ robot, narrator, contact });
 createSoundToggle();
 
 const scrollGate = createScrollGate();
+
+// Choosing hurry mid-session — the landing question, or any future switch control — must
+// disable the gate immediately. Every other visitor-mode reaction to the choice is
+// stylesheet-driven off data-mode; this one is scroll-gate JS, and it isn't reached by
+// the afterSwap hook below since no navigation happens when the landing question answers.
+visitor.subscribe((mode) => {
+  if (mode === visitor.MODES.HURRY) scrollGate.disable();
+});
 
 // Hold the page still through the opening. The light show is two and a half seconds and
 // plays exactly once; scrolling during it means the spotlight opens onto a section the
@@ -137,7 +159,7 @@ const router = createRouter({
   },
 
   // Full body walks the scroll path on the landing page; everywhere else the head pins
-  // to the left edge. Set before the swap so the robot is already moving as the new
+  // to the right edge. Set before the swap so the robot is already moving as the new
   // scene comes up, rather than snapping into place after it lands.
   beforeSwap: async ({ from, to }) => {
     robot.setMode(to === '/' ? 'full' : 'head');
@@ -173,6 +195,15 @@ if (import.meta.env.DEV) {
     __narrator: narrator,
     __lighting: lighting,
     __scrollGate: scrollGate,
+  });
+
+  // First-visit toggle: Shift+F. See core/debug-first-visit.js.
+  initDebugFirstVisit((forced) => {
+    console.info(
+      forced
+        ? '[debug] force-first-visit ON — reloading; every reload will look like a first visit'
+        : '[debug] force-first-visit OFF — reloading; a reload should now remember you'
+    );
   });
 
   // Route inspector: Shift+D, or ?debug=path. Only meaningful on the landing page.

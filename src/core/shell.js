@@ -15,12 +15,16 @@ let robot = null;
 /** @type {import('../components/narrator.js').Narrator | null} */
 let narrator = null;
 
+/** @type {import('../components/contact.js').Contact | null} */
+let contact = null;
+
 /**
- * @param {{ robot?: any, narrator?: any }} parts
+ * @param {{ robot?: any, narrator?: any, contact?: any }} parts
  */
 export function setShell(parts) {
   if (parts.robot) robot = parts.robot;
   if (parts.narrator) narrator = parts.narrator;
+  if (parts.contact) contact = parts.contact;
 }
 
 /** May be null if a view renders before the shell is built — callers must cope. */
@@ -30,4 +34,8 @@ export function getRobot() {
 
 export function getNarrator() {
   return narrator;
+}
+
+export function getContact() {
+  return contact;
 }

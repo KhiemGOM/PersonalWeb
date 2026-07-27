@@ -30,8 +30,10 @@ const CUE = {
   black: 400,
   /** The lenses come up, alone. */
   eyes: 1500,
-  /** The spotlight opens and the room resolves. */
+  /** The room's own light opens and resolves — the spotlight, not the robot's beam. */
   spotlight: 2700,
+  /** The torch clicks on after, once there is a lit room for it to be a second light in. */
+  torch: 3200,
 };
 
 /**
@@ -71,7 +73,7 @@ const FOCUS_SMOOTHING = 0.06;
  * crossfade rather than like a room being switched.
  */
 const BLACKOUT_OUT_MS = 190;
-const BLACKOUT_IN_MS = 620;
+const BLACKOUT_IN_MS = 820;
 
 /** Half-angle of the eye cone, radians. */
 const CONE_SPREAD = 0.3;
@@ -118,7 +120,7 @@ const BEAM_COLOR = '#a6f4e4';
  * glare rather than illumination. A torch bright enough to blow out what it is pointed at
  * defeats itself — the whole job is revealing the texture underneath, not replacing it.
  */
-const BEAM_GLOW = 0.18;
+const BEAM_GLOW = 0.15;
 
 /**
  * How hard the room's spotlight adds light, matching the torch's treatment.
@@ -138,8 +140,108 @@ const SPOT_GLOW = 0.13;
  */
 const BEAM_FEATHER_FACTOR = 0.055;
 
-/** @param {number} t 0–1 */
-const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+/**
+ * Hand-authored SHAPE for a light changing state — the opening reveal (both its phases),
+ * every room transition's bring-up, and now its blackout too, all stutter through some
+ * instance of this rather than doing a smooth ease.
+ *
+ * Fixed in the sense that it always happens — unlike createFlicker below, which is
+ * mostly silence with the odd burst, this fires on every single occurrence, because a
+ * light changing state is exactly the moment a stutter reads as natural rather than as
+ * noise. But the same instance played back note for note every time would turn into its
+ * own tell within a handful of hub transitions, so buildFlicker() below draws a fresh,
+ * jittered set of keyframes from this shape each time one starts, rather than reusing it
+ * verbatim.
+ *
+ * Each pair is [fraction of the ramp, level the light HOLDS from that point]. Stepped
+ * rather than interpolated between points, same reasoning as createFlicker below: a
+ * curve fitted through these would read as a pulse, and the thing being imitated here is
+ * a fault, not a pulse. Past the last fraction the light is just at its target.
+ * @type {[number, number][]}
+ */
+const FLICKER_SHAPE = [
+  [0.06, 0.5],
+  [0.12, 0.05],
+  [0.2, 0.7],
+  [0.27, 0.25],
+  [0.38, 0.9],
+  [0.47, 0.6],
+  [0.6, 1],
+];
+
+/**
+ * A fresh, jittered instance of FLICKER_SHAPE. Timing keeps a small jitter so the
+ * rhythm — the part that actually reads as "flicker" — stays intact; level jitter is
+ * wider, since that is the part that would otherwise repeat note for note.
+ *
+ * @param {() => number} random  0–1 generator; plain Math.random is fine here — this is
+ *   variety for its own sake, not something that ever needs to be replayed or measured.
+ * @returns {[number, number][]}
+ */
+function buildFlicker(random) {
+  const jittered = FLICKER_SHAPE.map(([at, level]) => [
+    Math.max(0.01, at + (random() * 2 - 1) * 0.02),
+    Math.min(1, Math.max(0, level + (random() * 2 - 1) * 0.18)),
+  ]);
+  // Timing jitter can reorder neighbours that started close together; the stepped
+  // lookup below assumes ascending fractions.
+  jittered.sort((a, b) => a[0] - b[0]);
+  return jittered;
+}
+
+/**
+ * Room transitions get their own, gentler shape — the intro's is a one-time event
+ * worth making a small show of; a room change happens every time the visitor picks a
+ * hub, and the same multi-stutter on every single click read as busy rather than
+ * atmospheric. Fewer points, shallower dips: one stumble on the way up, not several.
+ * @type {[number, number][]}
+ */
+const TRANSITION_FLICKER_SHAPE = [
+  [0.15, 0.6],
+  [0.32, 0.3],
+  [0.55, 1],
+];
+
+/**
+ * How often a transition gets a flicker at all. Real fixtures don't stutter on cue every
+ * single time, and always doing so is its own kind of repetitive — so some transitions
+ * just ramp smoothly instead.
+ */
+const TRANSITION_FLICKER_CHANCE = 0.55;
+
+/**
+ * Like buildFlicker(), but drawing from the leaner transition shape and sometimes
+ * skipping the stutter entirely.
+ * @param {() => number} random
+ * @returns {[number, number][] | null} null means: no flicker this time, ramp smoothly.
+ */
+function buildTransitionFlicker(random) {
+  if (random() > TRANSITION_FLICKER_CHANCE) return null;
+  const jittered = TRANSITION_FLICKER_SHAPE.map(([at, level]) => [
+    Math.max(0.01, at + (random() * 2 - 1) * 0.03),
+    Math.min(1, Math.max(0, level + (random() * 2 - 1) * 0.15)),
+  ]);
+  jittered.sort((a, b) => a[0] - b[0]);
+  return jittered;
+}
+
+/**
+ * @param {[number, number][]} pattern  One instance from buildFlicker()
+ * @param {number} t  0–1 through the ramp
+ */
+function sampleFlicker(pattern, t) {
+  if (t <= 0) return 0;
+  // 0 until the first keyframe fires, not 1 — before that point nothing has happened
+  // yet. The shapes used to carry an explicit [0, 0] entry that made this implicit;
+  // jittering the timing of every keyframe meant that entry could no longer be trusted
+  // to stay put at exactly 0, so the baseline is asserted here instead.
+  let level = 0;
+  for (const [at, value] of pattern) {
+    if (t < at) break;
+    level = value;
+  }
+  return level;
+}
 
 /**
  * Seeded random, so a flicker is reproducible.
@@ -247,6 +349,22 @@ export function createLighting(config) {
   /** 0 = lit, 1 = every light out. Everything below is scaled through it. */
   let blackout = 0;
   let blackoutTarget = 0;
+  // Captured at the start of whichever ramp is currently running, so it can be driven as
+  // an absolute lerp from a fixed start rather than accumulated per frame — required for
+  // the flicker below, which needs to know how far into its OWN ramp it is, not just
+  // which way blackout is currently trending.
+  let blackoutRampFrom = 0;
+  let blackoutRampElapsed = 0;
+  // Redrawn each time a transition starts (see blackOut()/bringUp()) — a fresh stutter
+  // for every room change rather than the same one on a loop, and null some of the time
+  // (see TRANSITION_FLICKER_CHANCE), meaning that particular change just ramps smoothly.
+  let blackoutFlicker = buildTransitionFlicker(Math.random);
+
+  // The opening reveal happens once, so its flickers are drawn once, here, rather than
+  // in blackOut()/bringUp() which this sequence never calls.
+  const introEyesFlicker = buildFlicker(Math.random);
+  const introSpotlightFlicker = buildFlicker(Math.random);
+  const introTorchFlicker = buildFlicker(Math.random);
 
   // Separate seeds, so the room light and the robot's torch never stutter together. Two
   // lights failing in unison reads as one scripted effect; independently, it reads as two
@@ -316,15 +434,28 @@ export function createLighting(config) {
     }
 
     if (elapsed < CUE.eyes) {
-      // Lenses only. The darkness stays total; what appears is the glow itself.
-      const t = easeOut((elapsed - CUE.black) / (CUE.eyes - CUE.black));
+      // Lenses only. The darkness stays total; what appears is the glow itself, waking
+      // up rather than fading in — unless motion is unwanted, where a plain ramp stands
+      // in for the stutter.
+      const raw = (elapsed - CUE.black) / (CUE.eyes - CUE.black);
+      const t = stillness?.matches ? raw : sampleFlicker(introEyesFlicker, raw);
       return { darkness: 1, ambient: 0, eyeGlow: t, cone: 0 };
     }
 
     if (elapsed < CUE.spotlight) {
-      // The spotlight opens out from the robot and the room resolves around it.
-      const t = easeOut((elapsed - CUE.eyes) / (CUE.spotlight - CUE.eyes));
-      return { darkness: lerp(1, DARKNESS, t), ambient: t, eyeGlow: 1, cone: t };
+      // The room's own light opens out and resolves around the robot — the torch stays
+      // off through this whole beat, so the room is what's establishing itself first.
+      const raw = (elapsed - CUE.eyes) / (CUE.spotlight - CUE.eyes);
+      const t = stillness?.matches ? raw : sampleFlicker(introSpotlightFlicker, raw);
+      return { darkness: lerp(1, DARKNESS, t), ambient: t, eyeGlow: 1, cone: 0 };
+    }
+
+    if (elapsed < CUE.torch) {
+      // Only now does the torch click on — a second light coming up in a room that
+      // already exists, rather than both arriving at once.
+      const raw = (elapsed - CUE.spotlight) / (CUE.torch - CUE.spotlight);
+      const t = stillness?.matches ? raw : sampleFlicker(introTorchFlicker, raw);
+      return { darkness: DARKNESS, ambient: 1, eyeGlow: 1, cone: t };
     }
 
     return { darkness: DARKNESS, ambient: 1, eyeGlow: 1, cone: 1 };
@@ -352,13 +483,19 @@ export function createLighting(config) {
     const lamp = { x: (source.x + centre.x) / 2, y: (source.y + centre.y) / 2 };
     elapsed += dt;
 
-    // Ease toward whichever way the lights are going. Linear in time rather than damped,
-    // so a transition takes the stated duration instead of asymptotically approaching it
-    // — a blackout that is still 4% lit is not a blackout.
-    const step = dt / (blackoutTarget > blackout ? BLACKOUT_OUT_MS : BLACKOUT_IN_MS);
-    blackout = blackoutTarget > blackout
-      ? Math.min(blackoutTarget, blackout + step)
-      : Math.max(blackoutTarget, blackout - step);
+    // Driven in time rather than damped, so a transition takes the stated duration
+    // instead of asymptotically approaching it — a blackout that is still 4% lit is not
+    // a blackout. Both directions can ride a flicker, just at very different scales: out
+    // is still fast (a light being killed is abrupt, not a fade) so its stutter is a
+    // quick flick rather than the slower wake-up bring-up gets. blackoutFlicker is null
+    // on the transitions that drew no flicker at all — those just ramp smoothly.
+    const goingDark = blackoutTarget > blackoutRampFrom;
+    const duration = goingDark ? BLACKOUT_OUT_MS : BLACKOUT_IN_MS;
+    blackoutRampElapsed += dt;
+    const rampT = Math.min(1, blackoutRampElapsed / duration);
+    const flickerT =
+      stillness?.matches || !blackoutFlicker ? rampT : sampleFlicker(blackoutFlicker, rampT);
+    blackout = lerp(blackoutRampFrom, blackoutTarget, flickerT);
 
     const lit = 1 - blackout;
     const staged = stage();
@@ -477,27 +614,34 @@ export function createLighting(config) {
      * can swap the scene behind the blackout rather than in full view.
      */
     blackOut() {
+      blackoutRampFrom = blackout;
+      blackoutRampElapsed = 0;
+      blackoutFlicker = buildTransitionFlicker(Math.random);
       blackoutTarget = 1;
       return new Promise((resolve) => setTimeout(resolve, BLACKOUT_OUT_MS));
     },
 
     /** Bring them back up on the new room. */
     bringUp() {
+      blackoutRampFrom = blackout;
+      blackoutRampElapsed = 0;
+      blackoutFlicker = buildTransitionFlicker(Math.random);
       blackoutTarget = 0;
     },
 
     /** Skip the opening — used when the visitor has already seen it this session. */
     finishIntro() {
-      elapsed = Math.max(elapsed, CUE.spotlight);
+      elapsed = Math.max(elapsed, CUE.torch);
     },
 
-    isIntroDone: () => elapsed >= CUE.spotlight,
+    isIntroDone: () => elapsed >= CUE.torch,
 
-    /** @returns {'black' | 'eyes' | 'spotlight' | 'live'} */
+    /** @returns {'black' | 'eyes' | 'spotlight' | 'torch' | 'live'} */
     phase() {
       if (elapsed < CUE.black) return 'black';
       if (elapsed < CUE.eyes) return 'eyes';
       if (elapsed < CUE.spotlight) return 'spotlight';
+      if (elapsed < CUE.torch) return 'torch';
       return 'live';
     },
 

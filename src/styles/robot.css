@@ -136,8 +136,9 @@
 }
 
 /* ---- Head-only mode ----
-   Hub and detail pages show the camera alone, pinned left. The body is faded and taken
-   out of layout so the head can centre on the rig origin. */
+   Hub and detail pages show the camera alone, pinned to the right edge — clear of a
+   column that, like all body text, starts reading from the left. The body is faded and
+   taken out of layout so the head can centre on the rig origin. */
 
 .robot[data-mode='head'] .robot__body {
   opacity: 0;
@@ -148,6 +149,16 @@
   position: static;
   margin: 0;
   width: 92px;
+}
+
+/* Below this width the head's own footprint (roughly 92px) is a quarter of a phone
+   screen, and content that reflows to fill the full width on mobile runs right up
+   against it. Off is better than crowding the text it is meant to be looking at. */
+@media (max-width: 44rem) {
+  .robot[data-mode='head'] .robot__head {
+    opacity: 0;
+    pointer-events: none;
+  }
 }
 
 /* ---- Opening reveal ----

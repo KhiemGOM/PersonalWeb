@@ -94,6 +94,16 @@ a {
   border-radius: 2px;
 }
 
+/* scroll-lock.js sets this whenever the page is deliberately held still — the opening
+   cinematic, the robot mid-sentence, the visitor-intent question. In all three cases a
+   click is how you move things along (the narrator's own click-to-continue), so the whole
+   page should read as "press here" rather than as body copy you might drag-select
+   through by accident while trying to do exactly that. */
+:root[data-scroll-locked] {
+  cursor: pointer;
+  user-select: none;
+}
+
 /* ---- Shell ----
    #robot-layer and #contact live OUTSIDE #scene-root, which is the only region the
    router swaps. That is what lets the robot persist across navigation instead of

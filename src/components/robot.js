@@ -10,7 +10,7 @@
  *
  * Two modes:
  *   'full' — whole robot, walking a scroll-driven path. Landing page only.
- *   'head' — head only, pinned to the left edge. Every other page.
+ *   'head' — head only, pinned to the right edge. Every other page.
  *
  * DEBUG RIG: the shapes below are placeholders standing in for hand-drawn art. Only the
  * two <svg> blocks are throwaway — the motion, damping, and mode logic outlive them.
@@ -136,8 +136,8 @@ const MAX_SPEED_PX_PER_SECOND = 2200;
 /** How quickly the robot leaves the path to take up its pinned post, and returns. */
 const PIN_SMOOTHING = 0.05;
 
-/** Where the head sits in 'head' mode, pinned against the left edge. */
-const PINNED_X = 78;
+/** How far the head sits from the right edge in 'head' mode. */
+const PINNED_X_MARGIN = 78;
 const PINNED_Y_RATIO = 0.5;
 
 /** Below this delta, skip the DOM write — avoids thrashing style on sub-pixel jitter. */
@@ -426,7 +426,9 @@ export function createRobot(config) {
     pinBlend = damp(pinBlend, mode === 'head' ? 1 : 0, PIN_SMOOTHING, dt);
 
     // The pinned post is screen space by definition — it stays put while pages scroll.
-    x = lerp(point.x * width, PINNED_X, pinBlend);
+    // Right edge, not left: text runs left-to-right starting at the left margin, so
+    // pinning the head there put its gaze right on top of whatever was being read.
+    x = lerp(point.x * width, width - PINNED_X_MARGIN, pinBlend);
     y = lerp(pathScreenY, height * PINNED_Y_RATIO, pinBlend);
 
     // Drivetrain: wheels roll the distance actually covered, chassis turns to face it.
