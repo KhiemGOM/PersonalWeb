@@ -16,6 +16,7 @@
 
 import { el } from '../lib/dom.js';
 import { parseParagraph, richText } from '../lib/richtext.js';
+import { getInteractiveLoader } from './interactive/registry.js';
 
 /**
  * @param {import('../content/items.js').Item} item
@@ -63,22 +64,36 @@ export function createDetail(item, hub) {
       ),
 
     // Interactive slot. Named honestly rather than promised vaguely: the label says what
-    // the visitor would get to do, and the status says whether it exists yet.
+    // the visitor would get to do, and the status says whether it exists yet. `live` items
+    // with a registered module get a real mount point; everything else keeps the plain
+    // placeholder. createDetail stays synchronous either way: it never awaits the loader,
+    // so the dense body copy above never waits on a game chunk downloading.
     item.interactive &&
       el(
         'section',
         { className: 'detail__interactive', dataset: { status: item.interactive.status } },
         el('p', { className: 'label' }, 'Interactive'),
-        el('p', { className: 'detail__interactive-label' }, item.interactive.label),
-        el(
-          'p',
-          { className: 'detail__interactive-status' },
-          item.interactive.status === 'live'
-            ? ''
-            : item.interactive.status === 'planned'
-              ? 'Not built yet.'
-              : 'Still deciding what this should be.'
-        )
+        item.interactive.status === 'live' && getInteractiveLoader(item.id)
+          ? el(
+              'div',
+              { className: 'detail__interactive-live' },
+              el('p', { className: 'detail__interactive-title' }, 'Try to LARP what I do'),
+              item.interactive.blurb &&
+                el('p', { className: 'detail__interactive-blurb' }, item.interactive.blurb),
+              el('div', { className: 'detail__interactive-mount' })
+            )
+          : el(
+              'div',
+              null,
+              el('p', { className: 'detail__interactive-label' }, item.interactive.label),
+              el(
+                'p',
+                { className: 'detail__interactive-status' },
+                item.interactive.status === 'planned'
+                  ? 'Not built yet.'
+                  : 'Still deciding what this should be.'
+              )
+            )
       )
   );
 }

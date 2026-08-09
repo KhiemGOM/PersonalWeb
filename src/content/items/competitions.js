@@ -18,7 +18,13 @@ export default [
       'I won **bronze** at the International Olympiad in Artificial Intelligence, 2024.',
       'I was also **national champion** at the Vietnamese Olympiad in Artificial Intelligence.',
     ],
-    interactive: { label: 'Hand-tune a linear regression', status: 'planned' },
+    interactive: {
+      label: 'Hand-tune a linear regression',
+      status: 'live',
+      blurb:
+        'A toy version of what fitting a model actually looks like: drag the slope and intercept by feel, then compare against the mathematically optimal fit.',
+      robotComment: "Real training doesn't need you to eyeball the slope. Where's the fun in that, though.",
+    },
   },
 
   {
@@ -34,7 +40,13 @@ export default [
       'I was **National Champion** and **Design Award winner** in 2024.',
       'In 2025 I came back as technical advisor to the team that finished **World Runner-up** and won the **Edison Division**.',
     ],
-    interactive: { label: 'Throw something at the scoring zone', status: 'planned' },
+    interactive: {
+      label: 'Throw something at the scoring zone',
+      status: 'live',
+      blurb:
+        'Pick an angle and a power, launch, and see where it lands. The zone moves after every attempt, so no combination stays solved for long.',
+      robotComment: "The actual robot never got thrown across a room. That part's just for you.",
+    },
   },
 
   {
@@ -50,7 +62,13 @@ export default [
       // TODO(copy): the planner, and what made the dynamic track different.
       'I placed **first** in the dynamic simulation track and **third** in the physical track at the BARN Challenge, ICRA 2026.',
     ],
-    interactive: { label: 'Drive a robot through a maze, blind', status: 'planned' },
+    interactive: {
+      label: 'Drive a robot through a maze, blind',
+      status: 'live',
+      blurb:
+        'You only ever see one square around you. Finding the shortest route means exploring first and remembering what you saw, the same limited-sensor problem the real robot had to solve.',
+      robotComment: 'He had LiDAR for this. You get vibes and one grid square of visibility.',
+    },
   },
 
   {
@@ -66,6 +84,12 @@ export default [
       // TODO(copy): pipeline structure, and where the accuracy/speed tradeoff bit.
       'I built the perception pipeline: the `CVAT` annotation workflow and the **LiDAR** processing behind it.',
     ],
-    interactive: { label: 'Shuffle a point-cloud cleaning pipeline', status: 'planned' },
+    interactive: {
+      label: 'Shuffle a point-cloud cleaning pipeline',
+      status: 'live',
+      blurb:
+        'Toggle and reorder the same four cleaning stages a real pipeline runs. Order changes both accuracy and speed, the tradeoff the actual system had to balance.',
+      robotComment: 'This is the idea, not the pipeline. The real one involved considerably more debugging.',
+    },
   },
 ];

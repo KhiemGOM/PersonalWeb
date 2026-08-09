@@ -16,9 +16,14 @@ export default [
     detail: [
       "I ran `A*` over a world where the terrain isn't fixed: blocks can be mined, so the cost of a path depends on what the agent is willing to destroy to get there. Letting it dig anywhere turned every neighboring block into a possible move, and node expansions *went insane* before the search finished a single path.",
       "The **air-potential heuristic** I added scores the open space ahead of the agent, pricing tunnelling as expensive by default so it only survives where digging is genuinely the shorter route.",
-      '> Full writeup below.',
     ],
-    interactive: { label: 'Solve a minable maze', status: 'planned' },
+    interactive: {
+      label: 'Solve a minable maze',
+      status: 'live',
+      blurb:
+        'Walking is cheap, mining a wall is expensive. The shortest-looking route through the wall band is not always the cheapest once that cost is counted, the same lesson the real heuristic encodes.',
+      robotComment: 'This is roughly what he did, except his A* did it a few million times a second and never complained.',
+    },
   },
 
   {
@@ -52,7 +57,13 @@ export default [
       // TODO(copy): the scheduling model, and what separates it from Anki-with-an-LLM.
       "An AI **spaced-repetition** app I'm building.",
     ],
-    interactive: { label: 'TBD', status: 'undecided' },
+    interactive: {
+      label: 'Turn a paragraph into a quiz',
+      status: 'live',
+      blurb:
+        'A scripted preview of the idea: read a passage, get a question generated from it, answer it. The real app automates the generating part.',
+      robotComment: "This is the general shape of it. The real app also has to be, you know, correct.",
+    },
   },
 
   {

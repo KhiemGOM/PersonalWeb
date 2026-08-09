@@ -1,0 +1,147 @@
+/**
+ * Minable-maze puzzle. Looser and more game-like than the rest of the site, but built from
+ * the same tokens, so this should read as a room inside the site, not an embedded iframe.
+ */
+
+.mmaze__hud {
+  font-family: var(--font-display);
+  font-size: var(--step--1);
+  color: var(--text-muted);
+  margin-bottom: var(--space-xs);
+}
+
+.mmaze__board {
+  display: grid;
+  /* Column count is set inline per level (loadLevel in minecraft-maze.js) since board size
+     now varies level to level; this is just a pre-first-render fallback. */
+  grid-template-columns: repeat(9, 1fr);
+  gap: 3px;
+  width: 100%;
+  max-width: 34rem;
+  aspect-ratio: 1;
+  margin-inline: auto;
+}
+
+.mmaze__cell {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  border: 1px solid var(--hairline);
+  padding: 0;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  transition:
+    background var(--tempo-pop) var(--ease-out),
+    scale var(--tempo-pop) var(--ease-out),
+    box-shadow var(--tempo-pop) var(--ease-out);
+}
+
+/* Hover preview: what clicking this cell would actually cost. A shoe for a plain step, a
+   pickaxe where that step means mining through first. */
+.mmaze__cell:not(:disabled):hover::after {
+  content: '👟';
+}
+
+.mmaze__cell[data-type='wall']:not(:disabled):hover::after,
+.mmaze__cell[data-type='hardwall']:not(:disabled):hover::after {
+  content: '⛏️';
+}
+
+.mmaze__cell[data-type='open'] {
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+}
+
+.mmaze__cell[data-type='wall'] {
+  background: var(--surface-raised);
+  border-color: color-mix(in srgb, var(--text) 20%, transparent);
+}
+
+.mmaze__cell[data-type='hardwall'] {
+  background: color-mix(in srgb, red 20%, var(--surface-raised));
+  border-color: color-mix(in srgb, red 40%, var(--text));
+}
+
+.mmaze__cell[data-type='bedrock'] {
+  background: var(--bg);
+  border-color: color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+.mmaze__cell[data-type='bedrock']::after {
+  content: '';
+  width: 40%;
+  height: 40%;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--text) 15%, transparent);
+}
+
+.mmaze__cell[data-type='start'] {
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+}
+
+.mmaze__cell[data-type='goal'] {
+  background: color-mix(in srgb, var(--accent) 30%, var(--surface));
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.mmaze__cell[data-type='player'] {
+  background: var(--accent);
+  box-shadow: 0 0 14px var(--accent-glow);
+}
+
+.mmaze__cell:not(:disabled):hover {
+  scale: 1.08;
+  cursor: pointer;
+}
+
+.mmaze__cell:disabled {
+  cursor: default;
+}
+
+.mmaze__message {
+  min-height: 1.4em;
+  margin-top: var(--space-s);
+  font-size: var(--step--1);
+  color: var(--text);
+}
+
+.mmaze__message:empty {
+  display: none;
+}
+
+.mmaze__actions {
+  display: flex;
+  gap: var(--space-s);
+  margin-top: var(--space-s);
+}
+
+/* Same keycap language as the narrator's primary choice: filled, offset shadow that
+   compresses on press. */
+.mmaze__reset {
+  font-family: var(--font-display);
+  font-size: var(--step--1);
+  font-weight: 600;
+  border-radius: var(--radius-pill);
+  padding: var(--space-2xs) var(--space-m);
+  color: var(--bg);
+  background: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 70%, black);
+  box-shadow: 0 3px 0 0 color-mix(in srgb, var(--accent) 55%, black);
+  cursor: pointer;
+  transition:
+    background var(--tempo-hover) var(--ease-out),
+    translate var(--tempo-hover) var(--ease-out),
+    box-shadow var(--tempo-hover) var(--ease-out);
+}
+
+.mmaze__reset:hover,
+.mmaze__reset:focus-visible {
+  background: color-mix(in srgb, var(--accent) 88%, white);
+  translate: 0 -1px;
+}
+
+.mmaze__reset:active {
+  translate: 0 2px;
+  box-shadow: 0 1px 0 0 color-mix(in srgb, var(--accent) 55%, black);
+}

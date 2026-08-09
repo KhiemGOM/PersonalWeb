@@ -1,0 +1,80 @@
+.rtuner__svg {
+  width: 100%;
+  max-width: 22rem;
+  margin-inline: auto;
+  display: block;
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+  border-radius: var(--radius);
+}
+
+.rtuner__point {
+  fill: var(--text-muted);
+}
+
+.rtuner__fit {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  transition: none;
+}
+
+.rtuner__hud {
+  font-family: var(--font-display);
+  font-size: var(--step--1);
+  color: var(--text-muted);
+  margin-top: var(--space-s);
+}
+
+.rtuner__control {
+  display: grid;
+  grid-template-columns: 5rem 1fr;
+  align-items: center;
+  gap: var(--space-s);
+  font-size: var(--step--1);
+  color: var(--text-faint);
+  margin-top: var(--space-xs);
+}
+
+.rtuner__control input[type='range'] {
+  accent-color: var(--accent);
+  width: 100%;
+}
+
+.rtuner__message {
+  min-height: 1.4em;
+  margin-top: var(--space-s);
+  font-size: var(--step--1);
+  color: var(--accent);
+}
+
+.rtuner__message:empty {
+  display: none;
+}
+
+.rtuner__button {
+  margin-top: var(--space-s);
+  font-family: var(--font-display);
+  font-size: var(--step--1);
+  font-weight: 600;
+  border-radius: var(--radius-pill);
+  padding: var(--space-2xs) var(--space-m);
+  color: var(--bg);
+  background: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 70%, black);
+  box-shadow: 0 3px 0 0 color-mix(in srgb, var(--accent) 55%, black);
+  cursor: pointer;
+  transition:
+    background var(--tempo-hover) var(--ease-out),
+    translate var(--tempo-hover) var(--ease-out),
+    box-shadow var(--tempo-hover) var(--ease-out);
+}
+
+.rtuner__button:hover,
+.rtuner__button:focus-visible {
+  background: color-mix(in srgb, var(--accent) 88%, white);
+  translate: 0 -1px;
+}
+
+.rtuner__button:active {
+  translate: 0 2px;
+  box-shadow: 0 1px 0 0 color-mix(in srgb, var(--accent) 55%, black);
+}

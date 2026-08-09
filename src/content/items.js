@@ -21,6 +21,11 @@ import { HUBS } from './hubs.js';
  * @typedef {Object} Interactive
  * @property {string} label    What the visitor gets to do
  * @property {'planned' | 'undecided' | 'live'} status
+ * @property {string} [blurb]  What the widget represents and why it works that way. Shown
+ *   above the mounted widget; skipped for planned/undecided since there's nothing to explain
+ * @property {string} [robotComment]  Fired once, the first time the visitor actually
+ *   interacts with the widget (not just scrolling past it) — how this toy relates to the
+ *   real thing, or an admission that it roughly doesn't
  *
  * @typedef {Object} Item
  * @property {string} id       URL segment; unique within its hub

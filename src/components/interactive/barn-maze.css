@@ -1,0 +1,104 @@
+.bmaze__hud {
+  font-family: var(--font-display);
+  font-size: var(--step--1);
+  color: var(--text-muted);
+  margin-bottom: var(--space-xs);
+}
+
+.bmaze__board {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 3px;
+  width: 100%;
+  max-width: 22rem;
+  aspect-ratio: 1;
+  margin-inline: auto;
+}
+
+.bmaze__cell {
+  aspect-ratio: 1;
+  border-radius: 4px;
+  border: 1px solid var(--hairline);
+  padding: 0;
+  cursor: pointer;
+  transition:
+    background var(--tempo-pop) var(--ease-out),
+    scale var(--tempo-pop) var(--ease-out),
+    box-shadow var(--tempo-pop) var(--ease-out);
+}
+
+.bmaze__cell[data-type='fog'] {
+  background: var(--bg);
+  border-color: color-mix(in srgb, var(--hairline) 60%, transparent);
+}
+
+.bmaze__cell[data-type='open'] {
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+}
+
+.bmaze__cell[data-type='wall'] {
+  background: var(--surface-raised);
+  border-color: color-mix(in srgb, var(--text) 20%, transparent);
+}
+
+.bmaze__cell[data-type='start'] {
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+}
+
+.bmaze__cell[data-type='goal'] {
+  background: color-mix(in srgb, var(--accent) 30%, var(--surface));
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.bmaze__cell[data-type='player'] {
+  background: var(--accent);
+  box-shadow: 0 0 14px var(--accent-glow);
+}
+
+.bmaze__cell:not(:disabled):hover {
+  scale: 1.08;
+}
+
+.bmaze__cell:disabled {
+  cursor: default;
+}
+
+.bmaze__message {
+  min-height: 1.4em;
+  margin-top: var(--space-s);
+  font-size: var(--step--1);
+  color: var(--text);
+}
+
+.bmaze__message:empty {
+  display: none;
+}
+
+.bmaze__reset {
+  margin-top: var(--space-s);
+  font-family: var(--font-display);
+  font-size: var(--step--1);
+  font-weight: 600;
+  border-radius: var(--radius-pill);
+  padding: var(--space-2xs) var(--space-m);
+  color: var(--bg);
+  background: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 70%, black);
+  box-shadow: 0 3px 0 0 color-mix(in srgb, var(--accent) 55%, black);
+  cursor: pointer;
+  transition:
+    background var(--tempo-hover) var(--ease-out),
+    translate var(--tempo-hover) var(--ease-out),
+    box-shadow var(--tempo-hover) var(--ease-out);
+}
+
+.bmaze__reset:hover,
+.bmaze__reset:focus-visible {
+  background: color-mix(in srgb, var(--accent) 88%, white);
+  translate: 0 -1px;
+}
+
+.bmaze__reset:active {
+  translate: 0 2px;
+  box-shadow: 0 1px 0 0 color-mix(in srgb, var(--accent) 55%, black);
+}

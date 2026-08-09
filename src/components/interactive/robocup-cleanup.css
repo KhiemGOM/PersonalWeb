@@ -1,0 +1,100 @@
+.rcup__svg {
+  width: 100%;
+  max-width: 22rem;
+  margin-inline: auto;
+  display: block;
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+  border-radius: var(--radius);
+}
+
+.rcup__point {
+  fill: var(--accent-dim);
+  transition: fill var(--tempo-hover) var(--ease-out);
+}
+
+.rcup__point--noise {
+  fill: color-mix(in srgb, red 55%, var(--text));
+}
+
+.rcup__hud {
+  font-family: var(--font-display);
+  font-size: var(--step--1);
+  color: var(--text-muted);
+  margin-top: var(--space-s);
+}
+
+.rcup__stages {
+  display: grid;
+  gap: var(--space-xs);
+  margin-top: var(--space-s);
+  padding: 0;
+  list-style: none;
+}
+
+.rcup__stage {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-s);
+  padding: var(--space-2xs) var(--space-s);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surface) 40%, transparent);
+  transition: border-color var(--tempo-hover) var(--ease-out);
+}
+
+.rcup__stage[data-enabled='true'] {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.rcup__stage-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--step--1);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.rcup__stage-label input {
+  accent-color: var(--accent);
+}
+
+.rcup__stage-move {
+  display: flex;
+  gap: var(--space-2xs);
+}
+
+.rcup__stage-move button {
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--hairline);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background var(--tempo-hover) var(--ease-out),
+    color var(--tempo-hover) var(--ease-out);
+}
+
+.rcup__stage-move button:not(:disabled):hover {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+}
+
+.rcup__stage-move button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.rcup__message {
+  min-height: 1.4em;
+  margin-top: var(--space-s);
+  font-size: var(--step--1);
+  color: var(--accent);
+}
+
+.rcup__message:empty {
+  display: none;
+}

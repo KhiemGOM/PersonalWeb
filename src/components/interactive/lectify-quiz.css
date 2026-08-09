@@ -1,0 +1,95 @@
+.lquiz__paragraph {
+  font-size: var(--step--1);
+  line-height: 1.6;
+  color: var(--text-muted);
+  max-width: 32ch;
+  margin-inline: auto;
+}
+
+.lquiz__question {
+  min-height: 2.6em;
+  margin-top: var(--space-m);
+  font-family: var(--font-display);
+  font-size: var(--step-0);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.lquiz__options {
+  display: grid;
+  gap: var(--space-xs);
+  margin-top: var(--space-s);
+}
+
+.lquiz__option {
+  text-align: left;
+  padding: var(--space-xs) var(--space-s);
+  border-radius: var(--radius);
+  border: 1px solid var(--hairline);
+  background: color-mix(in srgb, var(--surface) 45%, transparent);
+  color: var(--text);
+  font-size: var(--step--1);
+  cursor: pointer;
+  transition:
+    border-color var(--tempo-hover) var(--ease-out),
+    background var(--tempo-hover) var(--ease-out);
+}
+
+.lquiz__option:not(:disabled):hover {
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+.lquiz__option[data-result='correct'] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.lquiz__option[data-result='wrong'] {
+  border-color: color-mix(in srgb, red 55%, var(--text));
+  background: color-mix(in srgb, red 18%, transparent);
+}
+
+.lquiz__option:disabled {
+  cursor: default;
+  opacity: 0.85;
+}
+
+.lquiz__message {
+  min-height: 1.4em;
+  margin-top: var(--space-s);
+  font-size: var(--step--1);
+  color: var(--accent);
+}
+
+.lquiz__message:empty {
+  display: none;
+}
+
+.lquiz__button {
+  margin-top: var(--space-s);
+  font-family: var(--font-display);
+  font-size: var(--step--1);
+  font-weight: 600;
+  border-radius: var(--radius-pill);
+  padding: var(--space-2xs) var(--space-m);
+  color: var(--bg);
+  background: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 70%, black);
+  box-shadow: 0 3px 0 0 color-mix(in srgb, var(--accent) 55%, black);
+  cursor: pointer;
+  transition:
+    background var(--tempo-hover) var(--ease-out),
+    translate var(--tempo-hover) var(--ease-out),
+    box-shadow var(--tempo-hover) var(--ease-out);
+}
+
+.lquiz__button:hover,
+.lquiz__button:focus-visible {
+  background: color-mix(in srgb, var(--accent) 88%, white);
+  translate: 0 -1px;
+}
+
+.lquiz__button:active {
+  translate: 0 2px;
+  box-shadow: 0 1px 0 0 color-mix(in srgb, var(--accent) 55%, black);
+}
