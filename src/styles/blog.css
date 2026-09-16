@@ -112,6 +112,36 @@
 .research__bar { display: block; height: 100%; background: var(--accent); border-radius: inherit; }
 .research__bar--adverse { background: var(--light-library); }
 .research__axis { margin-top: var(--space-xs); }
+
+/* ---- Scatter (aggregate/interior/perimeter): two measures per item, plotted
+   against each other so the tradeoff between them is the shape of the chart, not
+   something a reader has to recombine from two separate bars. ---- */
+.research__chart--scatter { padding-bottom: var(--space-s); }
+.research__scatter { width: 100%; height: auto; overflow: visible; }
+.research__scatter-axis { stroke: var(--hairline); stroke-width: 1; }
+.research__scatter-tick { stroke: var(--hairline); stroke-width: 1; }
+.research__scatter-tick-label { font-size: 8px; fill: var(--text-faint); font-variant-numeric: tabular-nums; }
+.research__scatter-label { font-size: 8.5px; fill: var(--text-muted); }
+.research__scatter-label--muted { fill: var(--text-faint); }
+.research__scatter-dot {
+  fill: var(--accent);
+  stroke: color-mix(in srgb, var(--surface) 55%, var(--bg));
+  stroke-width: 2;
+  transition: r var(--tempo-hover) var(--ease-out);
+}
+.research__scatter-dot:hover { r: 8; cursor: pointer; }
+.research__scatter-dot--muted { fill: var(--text-faint); }
+
+/* ---- Threshold (density): a position relative to one cutoff, not a comparison
+   between categories -- a number line with the cutoff marked, not a bar chart. ---- */
+.research__chart--threshold { padding-bottom: var(--space-s); }
+.research__threshold { width: 100%; height: auto; overflow: visible; }
+.research__threshold-line { stroke: var(--hairline); stroke-width: 1; }
+.research__threshold-marker { stroke: var(--text-faint); stroke-width: 1.5; }
+.research__threshold-range { stroke-width: 4; stroke-linecap: round; }
+.research__threshold-dot { r: 6; stroke: color-mix(in srgb, var(--surface) 55%, var(--bg)); stroke-width: 2; }
+.research__threshold-item--below { stroke: var(--light-library); fill: var(--light-library); }
+.research__threshold-item--above { stroke: var(--accent); fill: var(--accent); }
 .research__table-scroll { overflow-x: auto; max-width: 100%; overscroll-behavior-inline: contain; }
 .research table { width: 100%; border-collapse: collapse; font-size: var(--step--1); font-variant-numeric: tabular-nums; text-align: left; }
 .research th, .research td { padding: var(--space-s); border-bottom: 1px solid var(--hairline); vertical-align: top; min-width: 7rem; }
