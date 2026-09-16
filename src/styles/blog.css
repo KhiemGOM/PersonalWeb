@@ -123,6 +123,7 @@
 .research__scatter-tick-label { font-size: 8px; fill: var(--text-faint); font-variant-numeric: tabular-nums; }
 .research__scatter-label { font-size: 8.5px; fill: var(--text-muted); }
 .research__scatter-label--muted { fill: var(--text-faint); }
+.research__scatter-leader { stroke: var(--text-faint); stroke-width: 1; }
 .research__scatter-dot {
   fill: var(--accent);
   stroke: color-mix(in srgb, var(--surface) 55%, var(--bg));

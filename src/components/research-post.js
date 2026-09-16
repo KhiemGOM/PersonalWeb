@@ -43,13 +43,20 @@ const figures = {
       ['MANHATTAN', '−0.46%', '+0.592%', '7', '5'],
       ['HYBRID', '−5.20%', '+0.072%', '4', '1'],
     ],
-    xAxis: { label: 'Expansion reduction (%)', domain: [0, 6], ticks: [0, 2, 4, 6], tickSuffix: '%' },
+    // Domain runs to 7, not 6, purely to leave breathing room to the right of the
+    // AIR_POTENTIAL/HYBRID pair below -- ticks still stop at 6%, the real max.
+    xAxis: { label: 'Expansion reduction (%)', domain: [0, 7], ticks: [0, 2, 4, 6], tickSuffix: '%' },
     yAxis: { label: 'Cost increase (%)', domain: [0, 0.65], ticks: [0, 0.3, 0.6], tickSuffix: '%' },
+    // AIR_POTENTIAL and HYBRID sit only 0.12 apart on x and land on the exact same
+    // y -- close enough that their dots visually merge into one. That's the correct
+    // picture (it's the hybrid section's finding), but a leader line from each label
+    // back to that same shared blob doesn't actually say which line means which dot.
+    // One label to the right, one to the left, is unambiguous without a line at all.
     points: [
-      { label: 'AIR_POTENTIAL', x: 5.32, y: 0.072, dx: -6, dy: -12, anchor: 'end' },
+      { label: 'AIR_POTENTIAL', x: 5.32, y: 0.072, dx: 14, dy: -5, anchor: 'start' },
       { label: 'NEAREST_AIR', x: 3.09, y: 0.000, dx: 0, dy: -12, anchor: 'middle' },
       { label: 'MANHATTAN', x: 0.46, y: 0.592, dx: 10, dy: -6, anchor: 'start' },
-      { label: 'HYBRID', x: 5.20, y: 0.072, dx: -6, dy: 18, anchor: 'end' },
+      { label: 'HYBRID', x: 5.20, y: 0.072, dx: -14, dy: 9, anchor: 'end' },
     ],
   },
   timing: {
@@ -227,6 +234,21 @@ function scatterChart(data) {
   for (const point of data.points) {
     const x = toX(point.x);
     const y = toY(point.y);
+    const labelX = x + point.dx;
+    const labelY = y + point.dy;
+
+    // Points close enough to need a big offset get a thin connector back to their
+    // own dot -- drawn first so the dot (appended after) sits on top of its start
+    // and the line reads as emerging from the marker, not floating loose.
+    if (point.leader) {
+      svg.append(svgEl('line', {
+        x1: x, y1: y,
+        x2: labelX + (point.anchor === 'end' ? 4 : point.anchor === 'start' ? -4 : 0),
+        y2: labelY - 3,
+        class: 'research__scatter-leader',
+      }));
+    }
+
     const dot = svgEl('circle', {
       cx: x, cy: y, r: point.muted ? 5 : 6,
       class: `research__scatter-dot${point.muted ? ' research__scatter-dot--muted' : ''}`,
@@ -234,7 +256,7 @@ function scatterChart(data) {
     dot.append(svgEl('title', {}));
     dot.lastChild.textContent = `${point.label}: ${data.xAxis.label} ${point.x}, ${data.yAxis.label} ${point.y}`;
     const label = svgEl('text', {
-      x: x + point.dx, y: y + point.dy, 'text-anchor': point.anchor,
+      x: labelX, y: labelY, 'text-anchor': point.anchor,
       class: `research__scatter-label${point.muted ? ' research__scatter-label--muted' : ''}`,
     });
     label.textContent = point.label.replaceAll('_', ' ');
