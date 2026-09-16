@@ -1,6 +1,6 @@
 import { scaffold } from './shared.js';
 
-export const title = 'Lost — Khiem';
+export const title = 'Lost · Khiem';
 
 /** @param {import('../core/router.js').ViewContext} ctx */
 export function render(ctx) {

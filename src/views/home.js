@@ -104,13 +104,13 @@ export function render() {
               label: 'Show me around',
               value: visitor.MODES.GUIDED,
               variant: 'primary',
-              reply: "Good. Scroll whenever you like — I'll keep up. Mostly.",
+              reply: "Good. Scroll whenever you like. I'll keep up. Mostly.",
             },
             {
               label: "I'm in a hurry",
               value: visitor.MODES.HURRY,
               variant: 'secondary',
-              reply: "Noted. We could've taken our time — but hurry it is.",
+              reply: "Noted. We could've taken our time, but hurry it is.",
             },
           ],
           {

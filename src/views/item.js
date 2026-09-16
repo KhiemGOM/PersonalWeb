@@ -9,7 +9,7 @@ import '../styles/detail.css';
 /** @param {import('../core/router.js').ViewContext} ctx */
 export const title = (ctx) => {
   const item = getItem(ctx.meta.hub, ctx.params.id);
-  return `${item?.title ?? 'Not found'} — Khiem`;
+  return `${item?.title ?? 'Not found'} · Khiem`;
 };
 
 /** @type {{ destroy(): void } | null} */

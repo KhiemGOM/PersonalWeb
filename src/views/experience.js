@@ -2,7 +2,7 @@ import { scaffold } from './shared.js';
 import { getContact, getNarrator } from '../core/shell.js';
 import { markSaid } from '../core/spoken.js';
 
-export const title = 'Experience — Khiem';
+export const title = 'Experience · Khiem';
 
 export function render() {
   // An aside, not a hub introduction — same register as an achievement reaction (see

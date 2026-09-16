@@ -29,6 +29,12 @@ body {
      large-scale wash for depth. All of it sits far below legibility in the dark — under
      the spotlight it is barely there, and outside it is invisible.
 
+     Every layer must be fully transparent by the time it reaches its own tile edge, or
+     the repeat shows up as a seam. The wash was the offender: an off-centre ellipse whose
+     glow was still non-zero at the top of its 160vh tile, so each tile began with a hard
+     edge. Its radii are now small enough (55% × 50%) that even the nearest edge sits past
+     the transparent stop at 70% of the ellipse — 0 alpha meets 0 alpha, no seam.
+
      Scrolls with the document rather than fixed to the viewport, so the robot travels
      past it instead of dragging it along. */
   background-color: var(--bg);
@@ -40,7 +46,7 @@ body {
   background-image:
     radial-gradient(circle at 50% 50%, color-mix(in srgb, #d69a52 32%, transparent) 1px, transparent 1.6px),
     radial-gradient(circle at 50% 50%, color-mix(in srgb, #8d7f6a 24%, transparent) 1.4px, transparent 2px),
-    radial-gradient(ellipse 70% 50% at 30% 20%, color-mix(in srgb, var(--text) 4%, transparent), transparent 70%);
+    radial-gradient(ellipse 55% 50% at 40% 45%, color-mix(in srgb, var(--text) 4%, transparent), transparent 70%);
   background-size:
     46px 46px,
     137px 119px,
@@ -133,6 +139,15 @@ a {
 
 #light-layer canvas {
   display: block;
+}
+
+/* The blog (main.js sets this via isPlainRoute) is a deliberate break from the rest of
+   the dimension: no robot, no darkness-and-spotlight, no flicker. Hiding the layers here
+   rather than tearing them down means nothing has to re-mount when the visitor leaves —
+   the robot and the lighting are exactly where they left them. */
+:root[data-plain='true'] #robot-layer,
+:root[data-plain='true'] #light-layer {
+  display: none;
 }
 
 #scene-root {

@@ -10,6 +10,23 @@
 
 import { el } from '../lib/dom.js';
 
+/** @typedef {{ href: string, text: string } | { text: string, onClick: () => void }} SpecLink */
+
+/**
+ * @param {SpecLink[]} links
+ */
+function renderLinks(links) {
+  return el(
+    'nav',
+    { className: 'scaffold__links' },
+    links.map(({ href, text, onClick }) =>
+      onClick
+        ? el('button', { type: 'button', className: 'scaffold__link', onclick: onClick }, text)
+        : el('a', { href, className: 'scaffold__link' }, text)
+    )
+  );
+}
+
 /**
  * @param {Object} spec
  * @param {{ href: string, text: string }} [spec.back]
@@ -18,13 +35,18 @@ import { el } from '../lib/dom.js';
  * @param {string} spec.label      Uppercase kicker
  * @param {string} spec.title
  * @param {string} [spec.body]
- * @param {Array<{ href: string, text: string } | { text: string, onClick: () => void }>} [spec.links]
- *   A link with onClick instead of href renders as a button styled the same way — for
- *   actions that aren't navigation, like opening the contact panel.
+ * @param {SpecLink[]} [spec.links]
+ *   One undifferentiated list of links. A link with onClick instead of href renders as a
+ *   button styled the same way — for actions that aren't navigation, like opening the
+ *   contact panel. Use `sections` instead when the links are more than one kind of thing.
+ * @param {{ label: string, links: SpecLink[] }[]} [spec.sections]
+ *   Grouped links, each under its own small kicker — for a page with more than one kind of
+ *   link (reading material vs. ways to get in touch, say), where lumping them into one
+ *   list would blur a distinction that matters. Takes over from `links` when given.
  * @param {Record<string, string>} [spec.debug]  Route facts worth seeing while building
  */
 export function scaffold(spec) {
-  const { back, label, title, body, links = [], debug } = spec;
+  const { back, label, title, body, links = [], sections, debug } = spec;
 
   return el(
     'section',
@@ -46,15 +68,19 @@ export function scaffold(spec) {
         ])
       ),
 
-    links.length > 0 &&
-      el(
-        'nav',
-        { className: 'scaffold__links' },
-        links.map(({ href, text, onClick }) =>
-          onClick
-            ? el('button', { type: 'button', className: 'scaffold__link', onclick: onClick }, text)
-            : el('a', { href, className: 'scaffold__link' }, text)
+    sections
+      ? el(
+          'div',
+          { className: 'scaffold__sections' },
+          sections.map((section) =>
+            el(
+              'div',
+              { className: 'scaffold__section' },
+              el('p', { className: 'label' }, section.label),
+              renderLinks(section.links)
+            )
+          )
         )
-      )
+      : links.length > 0 && renderLinks(links)
   );
 }

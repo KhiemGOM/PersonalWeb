@@ -33,6 +33,17 @@ import { must } from './lib/dom.js';
 
 sound.init();
 
+/**
+ * The blog is a deliberate style break from the rest of the site: a plain, sanitized
+ * reading page, not another room in the dimension. No robot, no lighting/flicker, no
+ * cinematic — checked by path since neither the route table nor router state is
+ * available this early (module init, before router.start()).
+ * @param {string} path
+ */
+function isPlainRoute(path) {
+  return path === '/blog' || path.startsWith('/blog/');
+}
+
 // DEBUG: forces every reload to look like a first visit, so the opening narration
 // replays and the visitor-intent branch is always exercised. Flippable at runtime with
 // Shift+F rather than a hardcoded boolean, since testing the OTHER path (does a reload
@@ -80,16 +91,26 @@ visitor.subscribe((mode) => {
   if (mode === visitor.MODES.HURRY) scrollGate.disable();
 });
 
-// Hold the page still through the opening. The light show is two and a half seconds and
-// plays exactly once; scrolling during it means the spotlight opens onto a section the
-// visitor has already left. Released the moment the room resolves.
-//
-// NOT held while the robot is merely talking. Narration waits for a click, so locking
-// during it would mean a page that refuses to move until the visitor works out that they
-// have to dismiss something first — the sort of thing that reads as a broken site rather
-// than a considered one.
-lockScroll('intro', { maxMs: 6000 });
-if (!lighting.isIntroDone()) window.scrollTo(0, 0);
+// A visitor whose very first hit is a direct link into the blog never sees the cinematic
+// at all — the light show has nothing to show on a page with no lighting layer, and
+// holding their scroll for it would just be a few seconds of a plain page refusing to
+// move for no visible reason.
+const initialPlain = isPlainRoute(window.location.pathname);
+document.documentElement.dataset.plain = String(initialPlain);
+if (initialPlain) {
+  lighting.finishIntro();
+} else {
+  // Hold the page still through the opening. The light show is two and a half seconds and
+  // plays exactly once; scrolling during it means the spotlight opens onto a section the
+  // visitor has already left. Released the moment the room resolves.
+  //
+  // NOT held while the robot is merely talking. Narration waits for a click, so locking
+  // during it would mean a page that refuses to move until the visitor works out that they
+  // have to dismiss something first — the sort of thing that reads as a broken site rather
+  // than a considered one.
+  lockScroll('intro', { maxMs: 6000 });
+  if (!lighting.isIntroDone()) window.scrollTo(0, 0);
+}
 
 // The narrator types on its own clock. The robot runs its own rAF loop for motion, but
 // driving a second one here would mean two loops competing for the same frames, so the
@@ -162,6 +183,10 @@ const router = createRouter({
   // to the right edge. Set before the swap so the robot is already moving as the new
   // scene comes up, rather than snapping into place after it lands.
   beforeSwap: async ({ from, to }) => {
+    // Set first, before the blackout below — the blog has no lighting layer at all, so
+    // there is nothing to fade there, just a clean cut in or out of the dimension.
+    document.documentElement.dataset.plain = String(isPlainRoute(to));
+
     robot.setMode(to === '/' ? 'full' : 'head');
     // One room's narration must never bleed into the next.
     narrator.clear();

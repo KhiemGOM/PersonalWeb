@@ -1,12 +1,13 @@
 import { el } from '../lib/dom.js';
 import { getPost, formatPostDate } from '../content/posts.js';
 import { parseParagraph, richText } from '../lib/richtext.js';
+import { renderResearchPost } from '../components/research-post.js';
 import '../styles/blog.css';
 
 /** @param {import('../core/router.js').ViewContext} ctx */
 export const title = (ctx) => {
   const post = getPost(ctx.params.id);
-  return `${post?.title ?? 'Not found'} — Khiem`;
+  return `${post?.title ?? 'Not found'} · Khiem`;
 };
 
 /** @param {import('../core/router.js').ViewContext} ctx */
@@ -16,7 +17,7 @@ export function render(ctx) {
   if (!post) {
     return el(
       'article',
-      { className: 'blog', 'data-lit': '' },
+      { className: 'blog' },
       el('a', { className: 'blog__back', href: '/blog' }, '← Blog'),
       el(
         'header',
@@ -30,7 +31,7 @@ export function render(ctx) {
 
   return el(
     'article',
-    { className: 'blog', 'data-lit': '' },
+    { className: post.research ? 'blog blog--research' : 'blog', 'data-lit': '' },
 
     el('a', { className: 'blog__back', href: '/blog' }, '← Blog'),
 
@@ -39,10 +40,11 @@ export function render(ctx) {
       { className: 'blog__header' },
       el('p', { className: 'label' }, 'Blog'),
       el('time', { className: 'blog__date', dateTime: post.date }, formatPostDate(post.date)),
-      el('h1', { className: 'blog__post-title' }, post.title)
+      el('h1', { className: 'blog__post-title' }, post.title),
+      post.research && el('p', { className: 'blog__intro' }, post.excerpt)
     ),
 
-    el(
+    post.research ? renderResearchPost() : el(
       'div',
       { className: 'blog__body' },
       post.body.map((paragraph) => {

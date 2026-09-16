@@ -2,14 +2,14 @@ import { el } from '../lib/dom.js';
 import { POSTS, formatPostDate } from '../content/posts.js';
 import '../styles/blog.css';
 
-export const title = 'Blog — Khiem';
+export const title = 'Blog · Khiem';
 
 export function render() {
   const sorted = [...POSTS].sort((a, b) => b.date.localeCompare(a.date));
 
   return el(
     'section',
-    { className: 'blog', 'data-lit': '' },
+    { className: 'blog' },
 
     el('a', { className: 'blog__back', href: '/' }, '← Home'),
 

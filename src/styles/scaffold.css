@@ -67,6 +67,18 @@
   margin-top: var(--space-s);
 }
 
+/* Each group of links gets its own kicker instead of one undifferentiated list — reading
+   material and ways to get in touch are not the same kind of thing. */
+.scaffold__sections {
+  display: grid;
+  gap: var(--space-m);
+  margin-top: var(--space-s);
+}
+
+.scaffold__section .scaffold__links {
+  margin-top: var(--space-xs);
+}
+
 .scaffold__link {
   color: var(--accent);
   font-size: var(--step--1);

@@ -47,7 +47,7 @@ Not a journey or timeline, at least for v1.
 ### Projects
 | Item | Interactive |
 |---|---|
-| **Minecraft pathfinding** (Python + Java, A* with air-potential heuristic) — flagship, first blog post | Puzzle with minable-maze mechanics |
+| **Minecraft pathfinding** (Java, A* with air-potential heuristic) — flagship, first blog post | Puzzle with minable-maze mechanics |
 | **Skillseed** (co-founded, 90k+ students, 80+ countries) | Grade a short sentence? — bland, needs a better idea |
 | **Lectify** (AI spaced-repetition app) | TBD |
 | **Clash of Nations** (in progress; multiplayer grand strategy / base building) | — |

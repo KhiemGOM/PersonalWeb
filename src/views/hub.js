@@ -6,7 +6,7 @@ import { markSaid } from '../core/spoken.js';
 import '../styles/scene.css';
 
 /** @param {import('../core/router.js').ViewContext} ctx */
-export const title = (ctx) => `${getHub(ctx.meta.hub)?.title ?? 'Hub'} — Khiem`;
+export const title = (ctx) => `${getHub(ctx.meta.hub)?.title ?? 'Hub'} · Khiem`;
 
 /** @type {{ destroy: () => void } | null} */
 let active = null;

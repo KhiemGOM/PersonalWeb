@@ -13,7 +13,7 @@ export default [
     flagship: true,
     scene: { x: 0.35, y: 0.52, scale: 1.1 },
     links: {},
-    robotLine: 'Task and motion planning — the part where I work out how to pick things up.',
+    robotLine: 'Task and motion planning: the part where I work out how to pick things up.',
     detail: [
       // TODO(copy): what the RA work actually produced, and what stayed unsolved.
       "I'm a research assistant under **Prof. Yoonchang Sung**, working on embodied AI and task and motion planning.",

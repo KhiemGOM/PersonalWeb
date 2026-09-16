@@ -7,7 +7,7 @@ export default [
     id: 'minecraft-pathfinding',
     hub: 'projects',
     title: 'Minecraft Pathfinding',
-    kicker: 'Python + Java · A* with an air-potential heuristic',
+    kicker: 'Java · A* with an air-potential heuristic',
     blurb: 'I gave the agent permission to dig through the world, then had to teach it how to get anywhere anyway.',
     flagship: true,
     scene: { x: 0.24, y: 0.58, scale: 1.15 },

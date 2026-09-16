@@ -41,9 +41,9 @@ export const SECTIONS = [
     // deliberately sets it up rather than telling the visitor to scroll, which the old
     // copy did right before interrupting them to ask something.
     narration: [
-      'Oh — hello. Give me a second, I was not expecting anyone.',
+      'Oh, hello. Give me a second, I was not expecting anyone.',
       'Right. I show people around this place. Four rooms, one of them a lie.',
-      'Before you dive in, though — one quick thing.',
+      'Before you dive in, though, one quick thing.',
     ],
   },
 
