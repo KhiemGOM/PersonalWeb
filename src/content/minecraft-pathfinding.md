@@ -1,6 +1,59 @@
 The expensive part of letting a Minecraft agent dig is deciding which digs to even consider. In one 368 × 128 × 368 Nether snapshot, the solver generated **2.39 million MINE candidates** in a single search. Only **11.3%** improved a best-known path cost. The other **88.7%** were work that went nowhere.
 
-I build a route planner for Minecraft terrain, a Java research project ([mc-pathfind](https://github.com/KhiemGOM/mc-pathfind)) that plans through a pre-loaded chunk of the Nether where the agent can mine, bridge, climb, fall, and parkour rather than only walk. This is the story of Air Potential: a cheap filter for the digging decision, the alternatives I tested against it, and the places where it makes the wrong call. The search underneath is weighted A* (Pohl, 1970), and it stays the same throughout. What changes is which mining edges it is allowed to see.
+I built a route planner for Minecraft terrain, a Java research project ([mc-pathfind](https://github.com/KhiemGOM/mc-pathfind)) that plans through a pre-loaded chunk of the Nether where the agent can mine, bridge, climb, fall, and parkour rather than only walk. This is the story of Air Potential: a cheap filter for the digging decision, the alternatives I tested against it, and the places where it makes the wrong call. The search underneath is weighted A* (Pohl, 1970), and it stays the same throughout. What changes is which mining edges it is allowed to see.
+
+## The world, the moves, and the search
+
+
+### The world is a flat array of block codes
+
+A region is one byte array with a [World](https://github.com/KhiemGOM/mc-pathfind/blob/master/java/core/src/main/java/dev/mcpathfind/core/World.java) wrapper: `index = (x · sizeY + y) · sizeZ + z`. A lookup outside the array returns a VOID sentinel instead of throwing, so edge code can probe neighbors without bounds checks scattered through it. [BlockType](https://github.com/KhiemGOM/mc-pathfind/blob/master/java/core/src/main/java/dev/mcpathfind/core/BlockType.java) collapses Minecraft's block list into six codes: air, dirt, stone, obsidian, bedrock, and lava. Dirt stands in for soft material such as netherrack, and stone for blackstone and basalt. Bedrock is solid and unbreakable. Lava is not solid, but it is never safe to enter.
+
+Only the properties the planner reads survive that collapse: solid or not, breakable or not, lava or not, and how long it takes to mine (0.3 s for dirt, 1.2 s for stone, 9 s for obsidian, before a tool multiplier).
+
+### A state is more than a position
+
+A search node is `(x, y, z, blocksRemaining, crawling)`. Position alone is not enough. The block count matters because bridging spends inventory, and an agent standing at the same cell with 3 blocks left has different options from one with 60. The crawl flag matters because crawling changes which cells are passable and which moves pay a startup cost.
+
+[StateCodec](https://github.com/KhiemGOM/mc-pathfind/blob/master/java/core/src/main/java/dev/mcpathfind/core/StateCodec.java) packs all five fields into a single 64-bit `long` (16 bits each for x and z, 10 for y, 8 for the block count, 1 for the crawl flag), so the hot loop never allocates an object per node. Each packed state is then interned to a small integer id the first time it appears, and the cost, parent, and closed arrays are indexed by that id.
+
+### Moves are edges with a cost in seconds
+
+Every move returns a target state and a cost in estimated seconds. The rules live in one place, [EdgeRules](https://github.com/KhiemGOM/mc-pathfind/blob/master/java/core/src/main/java/dev/mcpathfind/core/EdgeRules.java), and the search only asks it "what can I do from here?".
+
+| Move | What it does | Cost (seconds) |
+| --- | --- | --- |
+| SPRINT | Step to an adjacent cell with solid floor and clear headroom | distance / 5.6 |
+| CLIMB | Step up one block | distance / 5.6 + 0.15 |
+| FALL | Step off an edge and land below | distance / 5.6 + 0.05 per block dropped, +0.4 past 3 blocks, +1,000,000 if the fall crosses lava |
+| MINE | Dig the cell ahead and the cell above it while moving | max(mining time, distance / 5.6) + 0.2 |
+| MINE_DOWN | Dig straight down | mining time + 0.2 |
+| BOAT_CRAWL | Dig only the foot-level cell of a two-tall wall and crawl through the one-block gap | max(mining time, distance / 3) + 0.2, plus 5 to start crawling |
+| BRIDGE | Place a block over a gap and walk onto it | 0.2 + 0.5 + tax + distance / 5.6 |
+| BRIDGE_UP | Pillar straight up by placing blocks underneath | same placement cost and tax as BRIDGE |
+| PARKOUR | Jump 3, 4, or 6 blocks along one axis, landing up to a block higher or lower | short jumps cost about one CLIMB; longer ones add a risk term per block |
+
+Distance is 1 for a cardinal step and √2 for a diagonal. A diagonal is illegal when both flanking cells are solid, as in the game. Mining and moving overlap, which is why MINE takes the max of the two times rather than their sum. The extra 0.2 on MINE, MINE_DOWN, and BOAT_CRAWL is a tie-breaker, not a game mechanic: with a fast tool, mining time drops to zero, and without it a dig would tie exactly with an equal-length sprint.
+
+BRIDGE is the one move whose price depends on the state. Its tax is **0.6 × (1 + 3 / n)** for **n** blocks remaining: about 0.63 s with a full stack of 64, and 2.4 s on the last block. Placing a block is cheap while the inventory is full and expensive as it runs out, so the search spends blocks where they matter most. The action costs are simulated and hand-tuned, not measured from play, and that is one of the limits listed at the end.
+
+The heuristic is straight-line distance over sprint speed (horizontal distance in the octile sense, plus vertical distance), multiplied by epsilon. The weight is what makes the search weighted A*: at epsilon 1.0 it is ordinary A*, and above 1.0 it trades path quality for fewer expansions.
+
+### Two searches, one rulebook
+
+The repository has a forward-only solver, [WeightedAStar](https://github.com/KhiemGOM/mc-pathfind/blob/master/java/core/src/main/java/dev/mcpathfind/core/WeightedAStar.java), and a bidirectional one, [BidirectionalWeightedAStar](https://github.com/KhiemGOM/mc-pathfind/blob/master/java/core/src/main/java/dev/mcpathfind/core/BidirectionalWeightedAStar.java). The bidirectional version runs a forward search from the start and a backward search from the goal, one expansion each in turn. Whenever the two frontiers touch, it records the joined path cost as **μ**, the best full route found so far.
+
+Two design choices carry most of the weight.
+
+**One rulebook, two directions.** The backward half does not have its own hand-written movement rules. It asks EdgeRules for the cells that could have led to a given state, then checks each candidate against the forward rule for the same move. If the forward rule would not produce that exact edge at that exact cost, the reverse candidate is discarded. This makes it structurally hard for the two directions to disagree about what a move is.
+
+**A smaller backward state.** The forward state includes the block count, and the backward search cannot know it: how many blocks remain at a meeting point depends on what the forward prefix has already spent. Copying the backward graph once per possible block count was correct but far too expensive on real terrain. Instead, the backward state is just `(x, y, z, crawling)`, and the number of bridges its path used is carried alongside as a plain counter. Each reverse BRIDGE is priced as if it used the last remaining block, then the next one out as if it used the last two, and so on. That overestimates the true cost, and the final path cost is recomputed exactly once the meeting point is known. A meeting is only accepted if the forward side had enough blocks left to pay for the backward segment.
+
+The stopping rule is where this gets subtle. The textbook bidirectional rule stops when the best forward priority plus the best backward priority is at least μ. That rule is proved for bidirectional Dijkstra, where both heuristics are zero. Pohl's original bidirectional A* (1971) already ran into the same problem: with two real heuristics that are individually admissible but not balanced against each other, the sum can pass μ before μ is optimal. It happened here. On a synthetic world with an 8-block stone wall, where crawling is the cheaper way through (16.43 s), the search accepted a first meeting of 18.16 s, a route that mined two blocks and crawled the other six and paid the crawl startup cost for a partial crawl.
+
+The fully rigorous fix is to trust only the forward priority. I tried it: on one real region, expansions roughly doubled (about 876K to 1.68M) and wall-clock time roughly tripled (1.7 s to 6.0 s), slower than running forward-only. What the solver does instead is require μ to survive **2,000 expansions** without improving before the sum rule is trusted. That is a mitigation, not a proof. The forward search still ends when it pops the real goal, exactly as WeightedAStar does, which is what keeps the bidirectional result from being worse than the forward-only one.
+
+Forward and backward also see different terrain rules for pruning. The MINE filters described in this post apply to the forward half only. The backward half's reverse-MINE probing stays unpruned, because threading a filter through reverse probing risks exactly the forward-and-backward divergence described above. The experiments below therefore use the forward-only WeightedAStar, so the only thing that changes between modes is the MINE filter.
 
 ## Watch the decisions happen
 
@@ -145,6 +198,7 @@ For this agent, the engineering choice is how much work to spend on the decision
 
 - Hart, P. E., Nilsson, N. J., and Raphael, B. (1968). “A Formal Basis for the Heuristic Determination of Minimum Cost Paths.” *IEEE Transactions on Systems Science and Cybernetics* 4(2), 100–107.
 - Pohl, I. (1970). “Heuristic search viewed as path finding in a graph.” *Artificial Intelligence* 1(3–4), 193–204. The source of the epsilon-weighted heuristic used throughout.
+- Pohl, I. (1971). “Bi-directional search.” In Meltzer, B. and Michie, D. (eds.), *Machine Intelligence 6*, 127–140. The original bidirectional heuristic search, and the source of the stopping-rule problem discussed in the search section.
 - Baritone, an open-source Minecraft pathfinding bot: [repository](https://github.com/cabaletta/baritone), [feature documentation](https://github.com/cabaletta/baritone/blob/master/FEATURES.md), and [MovementHelper.java](https://github.com/cabaletta/baritone/blob/master/src/main/java/baritone/pathing/movement/MovementHelper.java), which holds the mining-duration calculation discussed above.
 - This project: [KhiemGOM/mc-pathfind](https://github.com/KhiemGOM/mc-pathfind). The filters discussed here live in [AirPotential.java](https://github.com/KhiemGOM/mc-pathfind/blob/master/java/core/src/main/java/dev/mcpathfind/core/AirPotential.java), [AirPotentialField.java](https://github.com/KhiemGOM/mc-pathfind/blob/master/java/core/src/main/java/dev/mcpathfind/core/AirPotentialField.java), [NearestAirDistance.java](https://github.com/KhiemGOM/mc-pathfind/blob/master/java/core/src/main/java/dev/mcpathfind/core/NearestAirDistance.java), and [StoneDensityField.java](https://github.com/KhiemGOM/mc-pathfind/blob/master/java/core/src/main/java/dev/mcpathfind/core/StoneDensityField.java), with the mode switch in [EdgeRules.java](https://github.com/KhiemGOM/mc-pathfind/blob/master/java/core/src/main/java/dev/mcpathfind/core/EdgeRules.java).
 
